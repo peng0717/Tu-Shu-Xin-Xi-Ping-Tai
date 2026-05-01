@@ -494,58 +494,39 @@
             const scannerEl = document.getElementById('isbnScanner');
             if(!scannerEl) return;
             scannerEl.innerHTML = '';
-
-            // 先请求摄像头权限，触发浏览器的授权弹窗
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                // 拿到权限后先关掉这个流，交给html5-qrcode来管理
-                stream.getTracks().forEach(t => t.stop());
-            } catch(err) {
-                console.error('摄像头权限获取失败:', err);
-                if(err.name === 'NotAllowedError'){
-                    showCameraError('摄像头权限被拒绝，请在浏览器地址栏左侧点击图标允许摄像头访问');
-                } else if(err.name === 'NotFoundError'){
-                    showCameraError('未检测到摄像头设备');
-                } else {
-                    showCameraError('无法访问摄像头：' + (err.message || err));
-                }
-                return;
-            }
             
             html5QrCode = new Html5Qrcode("isbnScanner");
             
             try {
-                const cameras = await Html5Qrcode.getCameras();
-                if(cameras && cameras.length > 0){
-                    // 优先选后置摄像头
-                    let cameraId = cameras[cameras.length - 1].id;
-                    const backCam = cameras.find(c => c.label && c.label.toLowerCase().includes('back'));
-                    if(backCam) cameraId = backCam.id;
-                    
-                    await html5QrCode.start(
-                        cameraId,
-                        { 
-                            fps: 20, 
-                            qrbox: { width: 280, height: 120 }, 
-                            aspectRatio: 1.0,
-                            formatsToSupport: [
-                                Html5QrcodeSupportedFormats.EAN_13,
-                                Html5QrcodeSupportedFormats.EAN_8,
-                                Html5QrcodeSupportedFormats.CODE_128,
-                                Html5QrcodeSupportedFormats.CODE_39,
-                                Html5QrcodeSupportedFormats.UPC_A,
-                                Html5QrcodeSupportedFormats.UPC_E
-                            ]
-                        },
-                        onScanSuccess,
-                        onScanFailure
-                    );
-                } else {
-                    showCameraError('未检测到摄像头设备');
-                }
+                // 直接用 facingMode 让库自己处理权限和设备选择
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    { 
+                        fps: 20, 
+                        qrbox: { width: 280, height: 120 }, 
+                        formatsToSupport: [
+                            Html5QrcodeSupportedFormats.EAN_13,
+                            Html5QrcodeSupportedFormats.EAN_8,
+                            Html5QrcodeSupportedFormats.CODE_128,
+                            Html5QrcodeSupportedFormats.CODE_39,
+                            Html5QrcodeSupportedFormats.UPC_A,
+                            Html5QrcodeSupportedFormats.UPC_E
+                        ]
+                    },
+                    onScanSuccess,
+                    onScanFailure
+                );
             } catch(err) {
                 console.error('摄像头启动失败:', err);
-                showCameraError('摄像头启动失败：' + (err.message || err));
+                if(err.name === 'NotAllowedError' || (err.message && err.message.includes('Permission'))){
+                    showCameraError('摄像头权限被拒绝，请点击浏览器地址栏左侧图标，允许摄像头访问后刷新页面重试');
+                } else if(err.name === 'NotFoundError' || (err.message && err.message.includes('notFound'))){
+                    showCameraError('未检测到摄像头设备');
+                } else if(err.message && err.message.includes('secure context')){
+                    showCameraError('需要在HTTPS环境下才能使用摄像头，请用HTTPS地址访问');
+                } else {
+                    showCameraError('摄像头启动失败：' + (err.message || err) + '。建议使用"手动输入ISBN"或"按书名搜索"');
+                }
             }
         }
 
