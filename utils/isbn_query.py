@@ -5,6 +5,7 @@ ISBN查询工具 - 调用豆瓣搜索、Google Books API获取图书信息
 import requests
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from config import GOOGLE_BOOKS_API, OPENLIBRARY_API
 
 # API超时时间（秒）
@@ -41,7 +42,7 @@ MOCK_BOOKS = {
         'publisher': '作家出版社',
         'publish_date': '2017-08-01',
         'cover_url': 'https://img9.doubanio.com/view/subject/l/public/s29614972.jpg',
-        'description': '《活着》讲述了农村人福贵悲惨的人生遭遇。福贵本是个阔少爷，可他嗜赌如命，终于赌光了家业，一贫如洗。'
+        'description': '《活着》讲述了农村人福贵悲惨的人生遭遇。福贵本是个阔少爷，可他嗜赌如钱，终于赌光了家业，一贫如洗。'
     },
     '9787020049294': {
         'title': '红楼梦',
@@ -270,10 +271,47 @@ def _get_douban_book_description(url):
     return ''
 
 
+def _get_isbn_from_douban_detail(book_id):
+    """从豆瓣详情页获取ISBN"""
+    try:
+        url = f'https://book.douban.com/subject/{book_id}/'
+        response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        
+        if response.status_code == 200:
+            # 从 #info section 中提取ISBN
+            match = re.search(r'<div id="info"[^>]*>(.*?)</div>', response.text, re.DOTALL)
+            if match:
+                info_html = match.group(1)
+                # 清理HTML标签获取纯文本
+                info_text = re.sub(r'<[^>]+>', '', info_html)
+                # 匹配ISBN格式: ISBN: 978-xxx-xxx-xxx 或 ISBN: 978xxxxxxxxx
+                isbn_match = re.search(r'ISBN[:\s]*(\d[\d\-]{9,}[\dXx])', info_text, re.IGNORECASE)
+                if isbn_match:
+                    isbn = isbn_match.group(1)
+                    # 清理ISBN中的横杠
+                    return isbn.replace('-', '')
+    except Exception as e:
+        print(f"获取豆瓣详情页ISBN失败 (book_id={book_id}): {e}")
+    
+    return ''
+
+
+def _fetch_douban_detail(book_id):
+    """获取豆瓣详情页的ISBN和简介"""
+    isbn = _get_isbn_from_douban_detail(book_id)
+    detail_url = f'https://book.douban.com/subject/{book_id}/'
+    description = _get_douban_book_description(detail_url)
+    return {
+        'book_id': book_id,
+        'isbn': isbn,
+        'description': description
+    }
+
+
 def query_isbn(isbn):
     """
     通过ISBN查询图书信息
-    查询顺序：MOCK_BOOKS → 豆瓣搜索 → Google Books → OpenLibrary → 失败
+    查询顺序：MOCK_BOOKS -> 豆瓣搜索 -> Google Books -> OpenLibrary -> 失败
     """
     # 清理ISBN（去除空格和特殊字符）
     isbn = isbn.strip().replace('-', '').replace(' ', '')
@@ -336,35 +374,80 @@ def search_book_by_title(keyword):
                 data = json.loads(match.group(1))
                 items = data.get('items', [])
                 
-                for item in items[:10]:  # 最多返回10个结果
+                # 收集需要获取详情的book_id（前5个）
+                items_to_fetch = items[:5]
+                book_id_to_index = {}
+                
+                temp_results = []
+                for i, item in enumerate(items[:10]):  # 最多返回10个结果
                     try:
                         title = item.get('title', '')
                         cover_url = item.get('cover_url', '')
                         abstract = item.get('abstract', '')
-                        url_link = item.get('url', '')
                         book_id = item.get('id', '')
                         
                         # 解析abstract获取作者、出版社、出版日期
                         parsed = _parse_douban_abstract(abstract)
                         
-                        # 尝试获取详情页简介
-                        description = ''
-                        if book_id:
-                            detail_url = f'https://book.douban.com/subject/{book_id}/'
-                            description = _get_douban_book_description(detail_url)
+                        # 如果是前5个，需要获取详情
+                        is_detail_needed = i < 5 and book_id
+                        if is_detail_needed:
+                            book_id_to_index[book_id] = len(temp_results)
                         
-                        results.append({
-                            'isbn': '',  # 豆瓣搜索结果中没有ISBN
+                        temp_results.append({
+                            'isbn': '',  # 初始为空，后面会填充
                             'title': title,
                             'author': parsed['author'],
                             'publisher': parsed['publisher'],
                             'publish_date': parsed['publish_date'],
                             'cover_url': cover_url,
-                            'description': description
+                            'description': '',  # 初始为空，后面会填充
+                            'book_id': book_id,
+                            '_need_detail': is_detail_needed
                         })
                     except Exception as e:
                         print(f"解析豆瓣搜索结果失败: {e}")
                         continue
+                
+                # 并行获取前5个结果的详情（ISBN和简介）
+                if book_id_to_index:
+                    with ThreadPoolExecutor(max_workers=5) as executor:
+                        futures = {
+                            executor.submit(_fetch_douban_detail, book_id): book_id 
+                            for book_id in book_id_to_index.keys()
+                        }
+                        
+                        for future in as_completed(futures):
+                            try:
+                                result = future.result()
+                                book_id = result['book_id']
+                                if book_id in book_id_to_index:
+                                    idx = book_id_to_index[book_id]
+                                    temp_results[idx]['isbn'] = result['isbn']
+                                    temp_results[idx]['description'] = result['description']
+                            except Exception as e:
+                                print(f"并行获取详情失败: {e}")
+                
+                # 从后5个结果中随机补充（如果前5个有些失败了）
+                for i, item in enumerate(temp_results):
+                    if not item['_need_detail']:
+                        # 尝试从原始items获取信息
+                        raw_index = i + 5
+                        if raw_index < len(items):
+                            try:
+                                raw_item = items[raw_index]
+                                detail_url = f'https://book.douban.com/subject/{raw_item.get("id", "")}/'
+                                item['description'] = _get_douban_book_description(detail_url)
+                            except:
+                                pass
+                    del item['_need_detail']
+                    del item['book_id']
+                    results.append(item)
+                
+                # 添加前5个结果
+                for i in range(min(5, len(temp_results))):
+                    results.append(temp_results[i])
+                
     except Exception as e:
         print(f"豆瓣书名搜索请求失败: {e}")
     

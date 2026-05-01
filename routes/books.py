@@ -359,3 +359,225 @@ def delete_category(category_id):
     except Exception as e:
         conn.close()
         return jsonify({'error': f'删除失败: {str(e)}'}), 500
+
+
+# ========== AI智能补全相关函数 ==========
+
+def _infer_category_from_title(title):
+    """根据书名推断分类"""
+    title_lower = title.lower()
+    
+    # 分类关键词映射
+    category_keywords = {
+        '计算机': ['python', 'java', 'javascript', '编程', '代码', '算法', '数据结构', '机器学习', '深度学习', '人工智能', 'ai', 'web', '前端', '后端', '数据库', 'sql', 'linux', 'git', '软件工程', '计算机', '编程语言', 'c++', 'c语言', 'rust', 'go', 'golang', 'node'],
+        '小说': ['活着', '红楼梦', '三国演义', '水浒传', '西游记', '平凡的世界', '围城', '射雕英雄传', '天龙八部', '神雕侠侣', '百年孤独', '追风筝的人', '解忧杂货店', '挪威的森林', '哈利波特', '霍比特人', '魔戒', '指环王', '小说'],
+        '文学': ['诗', '散文', '随笔', '文集', '文学', '人间词话', '谈美', '经典'],
+        '历史': ['历史', '史记', '资治通鉴', '全球通史', '万历十五年', '明朝那些事', '人类简史', '未来简史'],
+        '哲学': ['哲学', '尼采', '康德', '黑格尔', '苏菲的世界', '西方哲学史'],
+        '经济学': ['经济学', '资本论', '国富论', '薛兆丰', '穷爸爸富爸爸', '巴菲特', '投资', '理财', '金融'],
+        '心理学': ['心理学', '自卑与超越', '梦的解析', '乌合之众', '情商', '认知'],
+        '科普': ['时间简史', '果壳中的宇宙', '第一推动', '科普', '科学'],
+        '儿童文学': ['格林童话', '安徒生', '伊索寓言', '一千零一夜', '儿童', '绘本'],
+        '传记': ['传记', '自传', '回忆录', '曾国藩', '苏东坡', '李白', '杜甫', '王阳明'],
+    }
+    
+    for category, keywords in category_keywords.items():
+        for keyword in keywords:
+            if keyword in title_lower:
+                return category
+    
+    return ''
+
+
+def _infer_publisher_from_isbn(isbn):
+    """根据ISBN前缀推断出版社"""
+    if not isbn or len(isbn) < 4:
+        return ''
+    
+    # 中国主要出版社ISBN前缀映射
+    publisher_prefixes = {
+        '978-7-111': '机械工业出版社',
+        '978-7-115': '人民邮电出版社',
+        '978-7-302': '清华大学出版社',
+        '978-7-508': '中信出版社',
+        '978-7-5322': '上海译文出版社',
+        '978-7-5399': '人民文学出版社',
+        '978-7-5322-2': '上海译文出版社',
+        '978-7-5443': '海南出版社',
+        '978-7-5611': '大连理工大学出版社',
+        '978-7-122': '化学工业出版社',
+        '978-7-5605': '西安交通大学出版社',
+        '978-7-04': '高等教育出版社',
+        '978-7-030': '北京大学出版社',
+        '978-7-107': '人民教育出版社',
+        '978-7-5000': '中国大百科全书出版社',
+        '978-7-5322': '上海译文出版社',
+        '978-7-80109': '作家出版社',
+        '978-7-5064': '中国纺织出版社',
+        '978-7-5381': '辽宁科学技术出版社',
+        '978-7-80724': '京华出版社',
+        '978-7-5322-1': '上海译文出版社',
+    }
+    
+    # 尝试多种前缀匹配
+    for prefix, publisher in publisher_prefixes.items():
+        clean_prefix = prefix.replace('-', '')
+        if isbn.startswith(clean_prefix):
+            return publisher
+    
+    return ''
+
+
+def _infer_publisher_from_author(author):
+    """根据作者推断常用出版社"""
+    if not author:
+        return ''
+    
+    # 常见作者-出版社映射
+    author_publishers = {
+        '刘慈欣': '重庆出版社',
+        '余华': '作家出版社',
+        '莫言': '作家出版社',
+        '韩少功': '作家出版社',
+        '贾平凹': '作家出版社',
+        '周作人': '北京十月文艺出版社',
+        '鲁迅': '人民文学出版社',
+        '村上春树': '上海译文出版社',
+        '东野圭吾': '南海出版公司',
+        '卡勒德·胡赛尼': '上海人民出版社',
+        '加西亚·马尔克斯': '南海出版公司',
+        'J.K.罗琳': '人民文学出版社',
+        'J.R.R. Tolkien': '译林出版社',
+        'Eric Matthes': '人民邮电出版社',
+        '周志华': '清华大学出版社',
+        '吴军': '人民邮电出版社',
+        '尤瓦尔·赫拉利': '中信出版社',
+    }
+    
+    for author_name, publisher in author_publishers.items():
+        if author_name in author:
+            return publisher
+    
+    return ''
+
+
+def _generate_description(title, author, category):
+    """根据书名、作者、分类生成简短简介"""
+    if not title:
+        return ''
+    
+    parts = []
+    
+    # 添加分类信息
+    if category:
+        parts.append(category)
+    else:
+        parts.append('作品')
+    
+    # 添加作者信息
+    if author:
+        # 提取作者名（去除翻译信息）
+        main_author = author.split('/')[0].strip()
+        parts.insert(0, f'{main_author}的')
+    
+    return f'{title}是{"".join(parts)}。'
+
+
+def _normalize_date(date_str):
+    """标准化日期格式"""
+    if not date_str:
+        return ''
+    
+    # 如果已经是标准格式，直接返回
+    import re
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+        return date_str
+    
+    # 如果只有年份，补全为 1月1日
+    if re.match(r'^\d{4}$', date_str):
+        return f'{date_str}-01-01'
+    
+    # 如果是 年-月 格式
+    if re.match(r'^\d{4}-\d{1,2}$', date_str):
+        return f'{date_str}-01'
+    
+    return date_str
+
+
+@books_bp.route('/ai-fill', methods=['POST'])
+def ai_fill():
+    """
+    AI智能补全接口
+    根据已有信息智能推断并补全空字段
+    """
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': '请求数据不能为空'}), 400
+    
+    result = {
+        'isbn': data.get('isbn', ''),
+        'title': data.get('title', ''),
+        'author': data.get('author', ''),
+        'publisher': data.get('publisher', ''),
+        'publish_date': data.get('publish_date', ''),
+        'category': data.get('category', ''),
+        'description': data.get('description', ''),
+    }
+    
+    # 1. 补全ISBN（如果为空）
+    if not result['isbn']:
+        # 尝试从ISBN前缀推断出版社
+        pass  # ISBN为空时无法推断
+    
+    # 2. 补全出版社（如果为空）
+    if not result['publisher']:
+        # 方式1: 从ISBN前缀推断
+        isbn_infer = _infer_publisher_from_isbn(result.get('isbn', ''))
+        if isbn_infer:
+            result['publisher'] = isbn_infer
+        else:
+            # 方式2: 从作者推断
+            author_infer = _infer_publisher_from_author(result.get('author', ''))
+            if author_infer:
+                result['publisher'] = author_infer
+    
+    # 3. 补全分类（如果为空）
+    if not result['category']:
+        category_infer = _infer_category_from_title(result.get('title', ''))
+        if category_infer:
+            result['category'] = category_infer
+    
+    # 4. 补全出版日期格式
+    if result['publish_date']:
+        result['publish_date'] = _normalize_date(result['publish_date'])
+    
+    # 5. 补全简介（如果为空）
+    if not result['description'] and result['title']:
+        result['description'] = _generate_description(
+            result['title'], 
+            result['author'], 
+            result['category']
+        )
+    
+    # 统计补全的字段
+    filled_fields = []
+    original = {
+        'isbn': data.get('isbn', ''),
+        'title': data.get('title', ''),
+        'author': data.get('author', ''),
+        'publisher': data.get('publisher', ''),
+        'publish_date': data.get('publish_date', ''),
+        'category': data.get('category', ''),
+        'description': data.get('description', ''),
+    }
+    
+    for key in original:
+        if not original.get(key) and result.get(key):
+            filled_fields.append(key)
+    
+    return jsonify({
+        'success': True,
+        'data': result,
+        'filled_fields': filled_fields
+    })
