@@ -18,10 +18,9 @@ MAX_RENEW_COUNT = 2  # 最大续借次数
 MAX_BORROW_COUNT_STUDENT = 5  # 学生最大借阅数量
 MAX_BORROW_COUNT_TEACHER = 10  # 教师最大借阅数量
 
-# API配置
-DOUBAN_API_BASE = 'https://api.douban.com/v2/book/isbn/'
-# 豆瓣API备用地址
-DOUBAN_API_BACKUP = 'https://douban.uieee.com/v2/book/isbn/'
+# ISBN查询API配置
+OPENLIBRARY_API = 'https://openlibrary.org/api/books?bibkeys=ISBN:{}&format=json&jscmd=data'
+GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1/volumes?q=isbn:{}'
 
 # 分页配置
 DEFAULT_PAGE_SIZE = 20
