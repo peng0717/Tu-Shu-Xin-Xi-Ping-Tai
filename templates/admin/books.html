@@ -213,12 +213,13 @@
                         <div class="text-center mb-2" id="scanHint">
                             <small class="text-muted">将条形码对准下方红色线条位置</small>
                         </div>
-                        <div id="scanLoading" class="text-center py-4" style="display:none;">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="mt-2 text-muted">正在启动摄像头...</p>
-                        </div>
-                        <div class="scanner-container" id="scannerContainer" style="display:none;">
-                            <div id="isbnScanner" style="width:100%;min-height:300px;"></div>
+                        <div class="scanner-container" id="scannerContainer">
+                            <div id="isbnScanner" style="width:100%;min-height:300px;position:relative;">
+                                <div id="scanLoading" class="text-center py-5" style="position:absolute;top:0;left:0;right:0;bottom:0;background:#000;color:#fff;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                                    <div class="spinner-border text-light" role="status"></div>
+                                    <p class="mt-2">正在启动摄像头...</p>
+                                </div>
+                            </div>
                             <div class="scanner-line"></div>
                         </div>
                         <div id="scanResult" class="mt-3" style="display:none;">
@@ -497,18 +498,12 @@
             
             const scannerEl = document.getElementById('isbnScanner');
             if(!scannerEl) return;
-            scannerEl.innerHTML = '';
-
-            // 显示loading，隐藏扫描区域
-            document.getElementById('scanLoading').style.display = 'block';
-            document.getElementById('scannerContainer').style.display = 'none';
-            document.getElementById('scanHint').style.display = 'none';
+            scannerEl.innerHTML = '<div id="scanLoading" style="position:absolute;top:0;left:0;right:0;bottom:0;background:#000;color:#fff;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;"><div class="spinner-border text-light" role="status"></div><p class="mt-2">正在启动摄像头...</p></div>';
             document.getElementById('scanError').style.display = 'none';
             
             html5QrCode = new Html5Qrcode("isbnScanner");
             
             try {
-                // 直接用 facingMode 让库自己处理权限和设备选择
                 await html5QrCode.start(
                     { facingMode: "environment" },
                     { 
@@ -526,13 +521,13 @@
                     onScanSuccess,
                     onScanFailure
                 );
-                // 启动成功，显示扫描区域
-                document.getElementById('scanLoading').style.display = 'none';
-                document.getElementById('scannerContainer').style.display = 'block';
-                document.getElementById('scanHint').style.display = 'block';
+                // 启动成功，移除loading
+                const loading = document.getElementById('scanLoading');
+                if(loading) loading.remove();
             } catch(err) {
                 console.error('摄像头启动失败:', err);
-                document.getElementById('scanLoading').style.display = 'none';
+                const loading = document.getElementById('scanLoading');
+                if(loading) loading.remove();
                 if(err.name === 'NotAllowedError' || (err.message && err.message.includes('Permission'))){
                     showCameraError('摄像头权限被拒绝，请点击浏览器地址栏左侧图标，允许摄像头访问后刷新页面重试');
                 } else if(err.name === 'NotFoundError' || (err.message && err.message.includes('notFound'))){
