@@ -617,10 +617,25 @@
                     if(filledFields.includes('category') && filledData.category){
                         // 尝试匹配分类
                         const categorySelect = document.getElementById('categoryId');
+                        let found = false;
                         for(let i = 0; i < categorySelect.options.length; i++){
                             if(categorySelect.options[i].text.indexOf(filledData.category) !== -1){
                                 categorySelect.value = categorySelect.options[i].value;
+                                found = true;
                                 break;
+                            }
+                        }
+                        // 如果找不到，自动创建新分类
+                        if(!found){
+                            try {
+                                const catRes = await axios.post(`${API_BASE}/books/categories`, { name: filledData.category });
+                                if(catRes.data.category_id){
+                                    // 重新加载分类列表
+                                    await loadCategories();
+                                    categorySelect.value = catRes.data.category_id;
+                                }
+                            }catch(e){
+                                console.error('自动创建分类失败:', e);
                             }
                         }
                     }

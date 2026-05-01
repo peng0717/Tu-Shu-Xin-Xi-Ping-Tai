@@ -118,9 +118,16 @@ def _parse_douban_abstract(abstract):
         # 匹配出版社（中文或英文名称）
         if not publisher and re.search(r'[\u4e00-\u9fff出版社]', part) and not re.match(r'^\d', part):
             publisher = part
-        # 匹配出版日期
-        if not publish_date and re.match(r'^\d{4}', part):
-            publish_date = part
+        # 匹配出版日期（支持多种格式）
+        if not publish_date:
+            # 先标准化日期格式：替换"年月日"和"."为"-"
+            normalized = part.replace('年', '-').replace('月', '').replace('.', '-')
+            # 匹配: 2020-10, 2020.10, 2020年10月, 2020
+            if re.match(r'^\d{4}[-./\s]', normalized) or re.match(r'^\d{4}$', normalized):
+                publish_date = normalized
+                # 如果只匹配到年份，补全为 YYYY-01-01
+                if re.match(r'^\d{4}$', publish_date):
+                    publish_date = f'{publish_date}-01-01'
     
     if translator:
         author = f"{author} / {translator}"
@@ -272,38 +279,56 @@ def _get_douban_book_description(url):
 
 
 def _get_isbn_from_douban_detail(book_id):
-    """从豆瓣详情页获取ISBN"""
+    """从豆瓣详情页获取ISBN和出版日期"""
     try:
         url = f'https://book.douban.com/subject/{book_id}/'
         response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         
+        isbn = ''
+        publish_date = ''
+        
         if response.status_code == 200:
-            # 从 #info section 中提取ISBN
+            # 从 #info section 中提取ISBN和出版日期
             match = re.search(r'<div id="info"[^>]*>(.*?)</div>', response.text, re.DOTALL)
             if match:
                 info_html = match.group(1)
                 # 清理HTML标签获取纯文本
                 info_text = re.sub(r'<[^>]+>', '', info_html)
+                
                 # 匹配ISBN格式: ISBN: 978-xxx-xxx-xxx 或 ISBN: 978xxxxxxxxx
                 isbn_match = re.search(r'ISBN[:\s]*(\d[\d\-]{9,}[\dXx])', info_text, re.IGNORECASE)
                 if isbn_match:
                     isbn = isbn_match.group(1)
                     # 清理ISBN中的横杠
-                    return isbn.replace('-', '')
+                    isbn = isbn.replace('-', '')
+                
+                # 匹配出版日期: "出版年: 2020-10" 或 "出版年: 2020年10月"
+                date_match = re.search(r'出版年[:\s]*(\d{4}[-年]?\d{0,2}[-月]?)', info_text)
+                if date_match:
+                    date_str = date_match.group(1)
+                    # 标准化日期格式
+                    date_str = date_str.replace('年', '-').replace('月', '')
+                    if re.match(r'^\d{4}-\d{1,2}$', date_str):
+                        date_str = f'{date_str}-01'
+                    elif re.match(r'^\d{4}$', date_str):
+                        date_str = f'{date_str}-01-01'
+                    publish_date = date_str
+                    
     except Exception as e:
-        print(f"获取豆瓣详情页ISBN失败 (book_id={book_id}): {e}")
+        print(f"获取豆瓣详情页信息失败 (book_id={book_id}): {e}")
     
-    return ''
+    return isbn, publish_date
 
 
 def _fetch_douban_detail(book_id):
-    """获取豆瓣详情页的ISBN和简介"""
-    isbn = _get_isbn_from_douban_detail(book_id)
+    """获取豆瓣详情页的ISBN、出版日期和简介"""
+    isbn, publish_date = _get_isbn_from_douban_detail(book_id)
     detail_url = f'https://book.douban.com/subject/{book_id}/'
     description = _get_douban_book_description(detail_url)
     return {
         'book_id': book_id,
         'isbn': isbn,
+        'publish_date': publish_date,
         'description': description
     }
 
@@ -425,6 +450,9 @@ def search_book_by_title(keyword):
                                     idx = book_id_to_index[book_id]
                                     temp_results[idx]['isbn'] = result['isbn']
                                     temp_results[idx]['description'] = result['description']
+                                    # 如果详情页有出版日期且当前没有，则用详情页的
+                                    if result['publish_date'] and not temp_results[idx]['publish_date']:
+                                        temp_results[idx]['publish_date'] = result['publish_date']
                             except Exception as e:
                                 print(f"并行获取详情失败: {e}")
                 

@@ -150,6 +150,22 @@ def create_book():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # 处理分类：如果category_id为空，根据书名自动推断分类
+    category_id = data.get('category_id')
+    if not category_id:
+        inferred = _infer_category_from_title(data.get('title', ''))
+        if inferred:
+            # 查找或创建分类
+            cursor.execute('SELECT id FROM categories WHERE name = ?', (inferred,))
+            existing = cursor.fetchone()
+            if existing:
+                category_id = existing['id']
+            else:
+                cursor.execute('INSERT INTO categories (name, description) VALUES (?, ?)', 
+                              (inferred, f'{inferred}类图书'))
+                conn.commit()
+                category_id = cursor.lastrowid
+    
     try:
         cursor.execute('''
             INSERT INTO books (isbn, title, author, publisher, publish_date, 
@@ -163,7 +179,7 @@ def create_book():
             data.get('publisher', ''),
             data.get('publish_date', ''),
             data.get('cover_url', ''),
-            data.get('category_id'),
+            category_id,
             data.get('location', ''),
             data.get('total_count', 1),
             data.get('available_count', data.get('total_count', 1)),
@@ -316,6 +332,13 @@ def create_category():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # 检查是否已存在同名分类
+    cursor.execute('SELECT id FROM categories WHERE name = ?', (data['name'],))
+    existing = cursor.fetchone()
+    if existing:
+        conn.close()
+        return jsonify({'message': '分类已存在', 'category_id': existing['id']}), 200
+    
     try:
         cursor.execute('INSERT INTO categories (name, description) VALUES (?, ?)',
                       (data['name'], data.get('description', '')))
@@ -462,25 +485,32 @@ def _infer_publisher_from_author(author):
 
 
 def _generate_description(title, author, category):
-    """根据书名、作者、分类生成简短简介"""
+    """根据书名、作者、分类生成较丰富的简介"""
     if not title:
         return ''
     
-    parts = []
+    main_author = author.split('/')[0].strip() if author else '佚名'
     
-    # 添加分类信息
-    if category:
-        parts.append(category)
-    else:
-        parts.append('作品')
+    # 根据分类生成不同风格的简介
+    templates = {
+        '计算机': f'《{title}》是{main_author}编著的计算机类图书。本书系统介绍了相关技术知识，内容深入浅出，适合初学者和进阶读者阅读。通过本书的学习，读者可以全面掌握{title.replace("编程","程序设计").replace("入门","基础")}的核心概念和实践方法，是相关领域从业者和学习者的必备参考书。',
+        '小说': f'《{title}》是{main_author}创作的小说作品。本书以其独特的叙事手法和深刻的人物刻画，展现了丰富的文学内涵。作品情节引人入胜，语言优美流畅，具有极高的文学价值和阅读魅力，是{main_author}的代表作之一，深受广大读者喜爱。',
+        '文学': f'《{title}》是{main_author}的文学代表作。作品以细腻的笔触和深邃的思想，展现了独特的文学魅力。书中蕴含丰富的人文关怀和深刻的社会思考，语言精炼优美，是文学爱好者不可错过的经典之作。',
+        '历史': f'《{title}》是{main_author}撰写的历史类著作。本书以严谨的史学态度和生动的叙述方式，深入解读历史事件的来龙去脉，帮助读者以全新的视角理解历史。内容翔实，观点独到，是历史爱好者的重要参考读物。',
+        '哲学': f'《{title}》是{main_author}的哲学著作。本书深入探讨了哲学的核心命题，以清晰的逻辑和深刻的思辨，引导读者思考人生与世界的本质。论述严谨而不失生动，是哲学入门与进阶的佳作。',
+        '经济学': f'《{title}》是{main_author}撰写的经济学著作。本书系统地阐述了经济学理论与实践，结合丰富的案例和数据分析，帮助读者理解经济运行规律。内容通俗易懂，既有理论深度又有实践指导，是经济学领域的必读之书。',
+        '心理学': f'《{title}》是{main_author}的心理学著作。本书以科学的视角深入剖析人类心理活动的规律，结合大量实验和案例，揭示了行为背后的心理机制。内容兼具学术性和可读性，对自我认知和人际交往具有重要启发意义。',
+        '科普': f'《{title}》是{main_author}创作的科普读物。本书以通俗易懂的语言，将深奥的科学知识娓娓道来，让读者在轻松阅读中领略科学的魅力。内容生动有趣，图文并茂，是科学爱好者的优秀入门读物。',
+        '儿童文学': f'《{title}》是{main_author}为儿童创作的文学作品。本书以充满想象力的故事和温馨感人的情节，陪伴小读者快乐成长。语言生动活泼，富有教育意义，是儿童阅读的优质选择。',
+        '传记': f'《{title}》是关于{main_author}的传记作品。本书详实地记录了传主的生平事迹和心路历程，展现了其不平凡的人生经历和卓越成就。叙述真实感人，是一部值得细细品读的人物传记。',
+    }
     
-    # 添加作者信息
-    if author:
-        # 提取作者名（去除翻译信息）
-        main_author = author.split('/')[0].strip()
-        parts.insert(0, f'{main_author}的')
+    # 如果有匹配的分类模板，使用它
+    if category and category in templates:
+        return templates[category]
     
-    return f'{title}是{"".join(parts)}。'
+    # 通用模板
+    return f'《{title}》是{main_author}的作品。本书内容系统全面，论述深入浅出，对相关领域进行了详细的介绍和分析，是读者了解和学习该领域知识的重要参考。无论是入门学习还是深入研究，本书都具有很高的阅读价值。'
 
 
 def _normalize_date(date_str):
