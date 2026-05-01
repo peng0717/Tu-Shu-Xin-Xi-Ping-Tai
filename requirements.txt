@@ -1,0 +1,9 @@
+# 图书信息一体化平台 - Flask后端
+Flask==2.3.3
+Flask-CORS==4.0.0
+PyJWT==2.8.0
+werkzeug==2.3.7
+requests==2.31.0
+
+# 开发依赖
+python-dotenv==1.0.0

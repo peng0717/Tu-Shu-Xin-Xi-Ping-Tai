@@ -1,0 +1,134 @@
+/* 搜索页样式 */
+.container {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.search-header {
+  background: #fff;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.search-input-wrap {
+  flex: 1;
+  background: #f5f5f5;
+  border-radius: 20px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 14px;
+}
+
+.clear-icon {
+  padding: 4px;
+  color: #999;
+}
+
+.cancel-btn {
+  color: #667eea;
+  font-size: 14px;
+}
+
+/* 结果列表 */
+.result-list {
+  padding: 12px 16px;
+}
+
+.book-item {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.book-cover {
+  width: 80px;
+  height: 110px;
+  border-radius: 6px;
+  background: #eee;
+}
+
+.book-info {
+  flex: 1;
+  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.book-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.book-author, .book-publisher {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.book-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.available {
+  font-size: 12px;
+}
+
+.available.yes {
+  color: #4caf50;
+}
+
+.available.no {
+  color: #f44336;
+}
+
+.empty-state {
+  padding: 100px 20px;
+  text-align: center;
+}
+
+.empty-state .icon {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.empty-state text {
+  display: block;
+  color: #333;
+  font-size: 16px;
+}
+
+.empty-state .sub {
+  color: #999;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}

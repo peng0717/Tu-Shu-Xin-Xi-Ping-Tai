@@ -1,0 +1,74 @@
+<!-- 首页 -->
+<view class="container">
+  <!-- 顶部搜索区域 -->
+  <view class="header">
+    <view class="search-box" bindtap="goSearch">
+      <text class="iconfont icon-search">🔍</text>
+      <text class="placeholder">搜索书名、作者或ISBN</text>
+    </view>
+    <view class="notice-btn" bindtap="goNotice">
+      <text>📢</text>
+    </view>
+  </view>
+  
+  <!-- 轮播公告 -->
+  <view class="notice-banner" wx:if="{{notices.length > 0}}">
+    <view class="notice-icon">📢</view>
+    <swiper class="notice-swiper" vertical autoplay circular interval="3000">
+      <swiper-item wx:for="{{notices}}" wx:key="id" bindtap="goNoticeDetail" data-id="{{item.id}}">
+        <text class="notice-text">{{item.title}}</text>
+      </swiper-item>
+    </swiper>
+  </view>
+  
+  <!-- 热门推荐 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">🔥 热门推荐</text>
+      <text class="section-more" bindtap="goSearch">更多 ></text>
+    </view>
+    <scroll-view class="book-scroll" scroll-x>
+      <view class="book-item" wx:for="{{hotBooks}}" wx:key="id" bindtap="goBookDetail" data-id="{{item.id}}">
+        <image class="book-cover" src="{{item.cover_url || 'https://via.placeholder.com/100x140/667eea/ffffff?text=无封面'}}" mode="aspectFill"></image>
+        <text class="book-title">{{item.title}}</text>
+        <text class="book-author">{{item.author || '未知作者'}}</text>
+      </view>
+    </scroll-view>
+  </view>
+  
+  <!-- 新书上架 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">✨ 新书上架</text>
+      <text class="section-more" bindtap="goSearch">更多 ></text>
+    </view>
+    <view class="new-books">
+      <view class="book-card" wx:for="{{newBooks}}" wx:key="id" bindtap="goBookDetail" data-id="{{item.id}}">
+        <image class="book-cover" src="{{item.cover_url || 'https://via.placeholder.com/80x110/764ba2/ffffff?text=无封面'}}" mode="aspectFill"></image>
+        <view class="book-info">
+          <text class="book-title">{{item.title}}</text>
+          <text class="book-author">{{item.author || '未知作者'}}</text>
+          <text class="book-status {{item.available_count > 0 ? 'available' : 'unavailable'}}">
+            {{item.available_count > 0 ? '可借' : '已借完'}}
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 快速入口 -->
+  <view class="quick-entry">
+    <view class="entry-item" bindtap="goBorrow">
+      <view class="entry-icon">📖</view>
+      <text>扫码借书</text>
+    </view>
+    <view class="entry-item" bindtap="goMyBorrows">
+      <view class="entry-icon">📚</view>
+      <text>我的借阅</text>
+    </view>
+    <view class="entry-item" bindtap="goNotice">
+      <view class="entry-icon">📢</view>
+      <text>公告</text>
+    </view>
+  </view>
+</view>

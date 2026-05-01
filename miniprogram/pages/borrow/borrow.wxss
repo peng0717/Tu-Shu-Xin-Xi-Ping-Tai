@@ -1,0 +1,169 @@
+/* 借书页样式 */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  padding: 20px 16px;
+}
+
+.header-tip {
+  text-align: center;
+  color: #fff;
+  margin-bottom: 30px;
+}
+
+.header-tip text:first-child {
+  display: block;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.header-tip .sub {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.scan-btn {
+  background: rgba(255,255,255,0.2);
+  border: 2px dashed rgba(255,255,255,0.5);
+  border-radius: 20px;
+  padding: 60px;
+  text-align: center;
+  color: #fff;
+  margin-bottom: 30px;
+}
+
+.scan-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.manual-input {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.manual-input .title {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.input-row {
+  display: flex;
+  gap: 12px;
+}
+
+.isbn-input {
+  flex: 1;
+  background: #f5f5f5;
+  border-radius: 20px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.query-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 0 24px;
+  font-size: 14px;
+}
+
+.result-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 20px;
+  display: flex;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.result-card .book-cover {
+  width: 80px;
+  height: 110px;
+  border-radius: 8px;
+}
+
+.result-card .book-info {
+  flex: 1;
+  margin-left: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-card .book-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.result-card .book-author {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: auto;
+}
+
+.book-status {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  align-self: flex-start;
+}
+
+.book-status.available {
+  background: #e8f5e9;
+  color: #4caf50;
+}
+
+.book-status.unavailable {
+  background: #ffebee;
+  color: #f44336;
+}
+
+.borrow-btn {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: #fff;
+  text-align: center;
+  padding: 14px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+.history {
+  background: rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 30px;
+}
+
+.history .title {
+  display: block;
+  color: rgba(255,255,255,0.8);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 14px;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item .time {
+  opacity: 0.6;
+  font-size: 12px;
+}

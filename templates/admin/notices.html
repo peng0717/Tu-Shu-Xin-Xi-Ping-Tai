@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公告管理 - 图书馆后台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f5f5f5; }
+        .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 250px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 0; color: white; }
+        .sidebar a { color: rgba(255,255,255,0.8); padding: 12px 20px; display: block; text-decoration: none; transition: all 0.3s; }
+        .sidebar a:hover, .sidebar a.active { color: white; background: rgba(255,255,255,0.1); }
+        .sidebar a i { margin-right: 10px; }
+        .content { margin-left: 250px; padding: 20px; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        .notice-card { border-left: 4px solid #667eea; }
+    </style>
+</head>
+<body>
+    <script>if(!localStorage.getItem('adminToken'))window.location.href='/admin/login';</script>
+    
+    <div class="sidebar">
+        <h4 class="px-3 mb-4"><i class="bi bi-book"></i> 图书馆管理</h4>
+        <a href="/admin"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/admin/books"><i class="bi bi-book"></i> 图书管理</a>
+        <a href="/admin/borrows"><i class="bi bi-arrow-left-right"></i> 借还管理</a>
+        <a href="/admin/users"><i class="bi bi-people"></i> 读者管理</a>
+        <a href="/admin/reservations"><i class="bi bi-calendar-check"></i> 预约管理</a>
+        <a href="/admin/notices" class="active"><i class="bi bi-megaphone"></i> 公告管理</a>
+        <a href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> 退出</a>
+    </div>
+    
+    <div class="content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>公告管理</h2>
+            <button class="btn btn-primary" onclick="showAddModal()">
+                <i class="bi bi-plus-circle"></i> 发布公告
+            </button>
+        </div>
+        
+        <div class="row g-4" id="noticesList">
+            <div class="col-12">
+                <div class="text-center text-muted py-5">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 发布/编辑公告模态框 -->
+    <div class="modal fade" id="noticeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">发布公告</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="noticeForm">
+                        <input type="hidden" id="noticeId">
+                        <div class="mb-3">
+                            <label class="form-label">标题 *</label>
+                            <input type="text" class="form-control" id="noticeTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">内容</label>
+                            <textarea class="form-control" id="noticeContent" rows="8"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveNotice()">发布</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 公告详情模态框 -->
+    <div class="modal fade" id="noticeDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        <i class="bi bi-person"></i> <span id="detailAuthor"></span> &nbsp;|&nbsp;
+                        <i class="bi bi-clock"></i> <span id="detailDate"></span>
+                    </p>
+                    <div id="detailContent" style="white-space: pre-wrap;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="deleteNotice()">删除</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const API_BASE = '/api';
+        const token = localStorage.getItem('adminToken');
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        let noticeModal, detailModal, currentNoticeId;
+        
+        function logout(){localStorage.clear();window.location.href='/admin/login';}
+        
+        async function loadNotices(){
+            try {
+                const res = await axios.get(`${API_BASE}/notice?page_size=50`);
+                const notices = res.data.notices || [];
+                
+                if(notices.length === 0){
+                    document.getElementById('noticesList').innerHTML = '<div class="col-12"><div class="text-center text-muted py-5">暂无公告</div></div>';
+                    return;
+                }
+                
+                let html = '';
+                notices.forEach(n => {
+                    html += `<div class="col-md-6">
+                        <div class="card notice-card h-100" onclick="showDetail(${n.id}, '${n.title}', '${n.author_name}', '${n.created_at}', \`${(n.content||'').replace(/`/g,'\\`').replace(/\n/g,'\\n')}\`)">
+                            <div class="card-body">
+                                <h5 class="card-title">${n.title}</h5>
+                                <p class="card-text text-muted small">${(n.content||'').substring(0, 100)}${n.content?.length > 100 ? '...' : ''}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted"><i class="bi bi-person"></i> ${n.author_name}</small>
+                                    <small class="text-muted"><i class="bi bi-clock"></i> ${n.created_at?.slice(0,10)}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('noticesList').innerHTML = html;
+            }catch(e){
+                console.error(e);
+            }
+        }
+        
+        function showAddModal(){
+            document.getElementById('noticeForm').reset();
+            document.getElementById('noticeId').value = '';
+            noticeModal.show();
+        }
+        
+        async function saveNotice(){
+            const data = {
+                title: document.getElementById('noticeTitle').value,
+                content: document.getElementById('noticeContent').value
+            };
+            
+            if(!data.title){
+                alert('请输入标题');
+                return;
+            }
+            
+            try {
+                await axios.post(`${API_BASE}/notice`, data);
+                alert('发布成功');
+                noticeModal.hide();
+                loadNotices();
+            }catch(e){
+                alert(e.response?.data?.error || '发布失败');
+            }
+        }
+        
+        function showDetail(id, title, author, date, content){
+            currentNoticeId = id;
+            document.getElementById('detailTitle').textContent = title;
+            document.getElementById('detailAuthor').textContent = author;
+            document.getElementById('detailDate').textContent = date;
+            document.getElementById('detailContent').textContent = content || '无内容';
+            detailModal.show();
+        }
+        
+        async function deleteNotice(){
+            if(!confirm('确定删除此公告？')) return;
+            try {
+                await axios.delete(`${API_BASE}/notice/${currentNoticeId}`);
+                alert('删除成功');
+                detailModal.hide();
+                loadNotices();
+            }catch(e){
+                alert(e.response?.data?.error || '删除失败');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            noticeModal = new bootstrap.Modal(document.getElementById('noticeModal'));
+            detailModal = new bootstrap.Modal(document.getElementById('noticeDetailModal'));
+            loadNotices();
+        });
+    </script>
+</body>
+</html>

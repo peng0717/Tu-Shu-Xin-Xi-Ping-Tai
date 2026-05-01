@@ -1,0 +1,67 @@
+/* 公告列表页样式 */
+.container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 12px 16px;
+}
+
+.notice-list {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.notice-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.notice-item:last-child {
+  border-bottom: none;
+}
+
+.notice-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.notice-content {
+  flex: 1;
+}
+
+.notice-title {
+  display: block;
+  font-size: 15px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.notice-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.arrow {
+  color: #ccc;
+  font-size: 14px;
+}
+
+.empty-state {
+  padding: 80px 20px;
+  text-align: center;
+  color: #999;
+}
+
+.empty-state .icon {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}

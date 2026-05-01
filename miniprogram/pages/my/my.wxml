@@ -1,0 +1,65 @@
+<!-- 我的页面 -->
+<view class="container">
+  <!-- 用户信息 -->
+  <view class="user-card" wx:if="{{userInfo}}">
+    <view class="avatar">{{userInfo.name?.slice(0,1) || '?'}}</view>
+    <view class="user-info">
+      <text class="name">{{userInfo.name}}</text>
+      <text class="role">{{userInfo.role === 'student' ? '学生' : userInfo.role === 'teacher' ? '教师' : '管理员'}}</text>
+    </view>
+    <text class="student-id">{{userInfo.student_id}}</text>
+  </view>
+  
+  <!-- 未登录 -->
+  <view class="login-tip" wx:if="{{!userInfo}}" bindtap="goLogin">
+    <text>点击登录</text>
+  </view>
+  
+  <!-- 借阅统计 -->
+  <view class="stats-card" wx:if="{{userInfo}}">
+    <view class="stat-item">
+      <text class="num">{{stats.current}}</text>
+      <text class="label">当前借阅</text>
+    </view>
+    <view class="stat-item">
+      <text class="num">{{stats.borrowed}}</text>
+      <text class="label">累计借阅</text>
+    </view>
+    <view class="stat-item">
+      <text class="num {{stats.overdue > 0 ? 'warning' : ''}}">{{stats.overdue}}</text>
+      <text class="label">逾期未还</text>
+    </view>
+  </view>
+  
+  <!-- 功能菜单 -->
+  <view class="menu-list">
+    <view class="menu-item" bindtap="goMyBorrows">
+      <text class="icon">📚</text>
+      <text class="label">我的借阅</text>
+      <text class="arrow">></text>
+    </view>
+    <view class="menu-item" bindtap="goMyReservations">
+      <text class="icon">📝</text>
+      <text class="label">我的预约</text>
+      <text class="arrow">></text>
+    </view>
+    <view class="menu-item" bindtap="goNotice">
+      <text class="icon">📢</text>
+      <text class="label">公告通知</text>
+      <text class="arrow">></text>
+    </view>
+  </view>
+  
+  <view class="menu-list">
+    <view class="menu-item" bindtap="showAbout">
+      <text class="icon">ℹ️</text>
+      <text class="label">关于系统</text>
+      <text class="arrow">></text>
+    </view>
+  </view>
+  
+  <!-- 退出登录 -->
+  <view class="logout-btn" wx:if="{{userInfo}}" bindtap="logout">
+    退出登录
+  </view>
+</view>

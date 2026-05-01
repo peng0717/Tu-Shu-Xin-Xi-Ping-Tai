@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>借还管理 - 图书馆后台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f5f5f5; }
+        .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 250px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 0; color: white; }
+        .sidebar a { color: rgba(255,255,255,0.8); padding: 12px 20px; display: block; text-decoration: none; transition: all 0.3s; }
+        .sidebar a:hover, .sidebar a.active { color: white; background: rgba(255,255,255,0.1); }
+        .sidebar a i { margin-right: 10px; }
+        .content { margin-left: 250px; padding: 20px; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; }
+        .status-borrowed { background: #e3f2fd; color: #1565c0; }
+        .status-returned { background: #e8f5e9; color: #2e7d32; }
+        .status-overdue { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <script>if(!localStorage.getItem('adminToken'))window.location.href='/admin/login';</script>
+    
+    <div class="sidebar">
+        <h4 class="px-3 mb-4"><i class="bi bi-book"></i> 图书馆管理</h4>
+        <a href="/admin"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/admin/books"><i class="bi bi-book"></i> 图书管理</a>
+        <a href="/admin/borrows" class="active"><i class="bi bi-arrow-left-right"></i> 借还管理</a>
+        <a href="/admin/users"><i class="bi bi-people"></i> 读者管理</a>
+        <a href="/admin/reservations"><i class="bi bi-calendar-check"></i> 预约管理</a>
+        <a href="/admin/notices"><i class="bi bi-megaphone"></i> 公告管理</a>
+        <a href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> 退出</a>
+    </div>
+    
+    <div class="content">
+        <h2 class="mb-4">借还管理</h2>
+        
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h6 class="text-muted">在借总数</h6>
+                    <h2 id="borrowedCount">-</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h6 class="text-muted">逾期数量</h6>
+                    <h2 class="text-danger" id="overdueCount">-</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h6 class="text-muted">今日借还</h6>
+                    <h2><span class="text-primary" id="todayBorrows">-</span> / <span class="text-success" id="todayReturns">-</span></h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <ul class="nav nav-pills mb-3" id="statusTabs">
+                    <li class="nav-item"><a class="nav-link active" href="#" data-status="">全部</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" data-status="borrowed">在借</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" data-status="returned">已还</a></li>
+                    <li class="nav-item"><a class="nav-link text-danger" href="#" data-status="overdue">逾期</a></li>
+                </ul>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>读者</th>
+                                <th>学号</th>
+                                <th>图书</th>
+                                <th>作者</th>
+                                <th>借阅日期</th>
+                                <th>到期日期</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="borrowTable">
+                            <tr><td colspan="8" class="text-center text-muted py-4">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <nav><ul class="pagination justify-content-center" id="pagination"></ul></nav>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const API_BASE = '/api';
+        const token = localStorage.getItem('adminToken');
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        let currentStatus = '', currentPage = 1;
+        
+        function logout(){localStorage.clear();window.location.href='/admin/login';}
+        
+        async function loadStats(){
+            const res = await axios.get(`${API_BASE}/stats/dashboard`);
+            const d = res.data;
+            document.getElementById('borrowedCount').textContent = d.current_borrows;
+            document.getElementById('overdueCount').textContent = d.overdue_count;
+            document.getElementById('todayBorrows').textContent = d.today_borrows;
+            document.getElementById('todayReturns').textContent = d.today_returns;
+        }
+        
+        async function loadBorrows(page = 1){
+            currentPage = page;
+            let url = `${API_BASE}/borrow/all?page=${page}&page_size=15`;
+            
+            const res = await axios.get(url);
+            const {records, total, total_pages} = res.data;
+            const now = new Date();
+            
+            let html = '';
+            if(records.length === 0){
+                document.getElementById('borrowTable').innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">暂无数据</td></tr>';
+            }else{
+                records.forEach(r => {
+                    let status = r.status;
+                    let statusClass = 'status-borrowed';
+                    let statusText = '在借';
+                    
+                    if(r.status === 'returned'){
+                        statusClass = 'status-returned';
+                        statusText = '已还';
+                    }
+                    
+                    const dueDate = new Date(r.due_date);
+                    if(r.status === 'borrowed' && now > dueDate){
+                        statusClass = 'status-overdue';
+                        statusText = '逾期';
+                    }
+                    
+                    html += `<tr>
+                        <td>${r.user_name}</td>
+                        <td><code>${r.student_id}</code></td>
+                        <td>${r.title}</td>
+                        <td>${r.author || '-'}</td>
+                        <td>${r.borrow_date?.slice(0,10) || '-'}</td>
+                        <td class="${statusClass === 'status-overdue' ? 'text-danger fw-bold' : ''}">${r.due_date?.slice(0,10) || '-'}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            ${r.status === 'borrowed' ? `<button class="btn btn-sm btn-success" onclick="returnBook(${r.book_id},${r.user_id})"><i class="bi bi-check-lg"></i> 还书</button>` : ''}
+                        </td>
+                    </tr>`;
+                });
+                document.getElementById('borrowTable').innerHTML = html;
+            }
+            
+            let pageHtml = '';
+            for(let i = 1; i <= total_pages; i++){
+                pageHtml += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" onclick="loadBorrows(${i});return false;">${i}</a></li>`;
+            }
+            document.getElementById('pagination').innerHTML = pageHtml;
+        }
+        
+        async function returnBook(bookId, userId){
+            if(!confirm('确认办理还书？')) return;
+            try {
+                // 这里需要用管理员身份借还，暂时用userId模拟
+                const res = await axios.post(`${API_BASE}/borrow/return`, {book_id: bookId});
+                alert(res.data.message + (res.data.is_overdue ? '（已逾期）' : ''));
+                loadBorrows(currentPage);
+                loadStats();
+            }catch(e){
+                alert(e.response?.data?.error || '还书失败');
+            }
+        }
+        
+        document.getElementById('statusTabs').addEventListener('click', e => {
+            if(e.target.classList.contains('nav-link')){
+                e.preventDefault();
+                document.querySelectorAll('#statusTabs .nav-link').forEach(el => el.classList.remove('active'));
+                e.target.classList.add('active');
+                currentStatus = e.target.dataset.status;
+                loadBorrows();
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadBorrows();
+        });
+    </script>
+</body>
+</html>

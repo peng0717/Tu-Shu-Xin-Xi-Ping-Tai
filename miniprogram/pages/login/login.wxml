@@ -1,0 +1,36 @@
+<!-- 登录页 -->
+<view class="container">
+  <view class="logo">
+    <text class="icon">📚</text>
+    <text class="title">图书信息平台</text>
+    <text class="sub">便捷的图书馆借阅服务</text>
+  </view>
+  
+  <view class="form">
+    <view class="input-group">
+      <text class="label">学号</text>
+      <input class="input" placeholder="请输入学号" value="{{studentId}}" bindinput="onStudentIdInput}"/>
+    </view>
+    <view class="input-group">
+      <text class="label">密码</text>
+      <input class="input" type="password" placeholder="请输入密码" value="{{password}}" bindinput="onPasswordInput"/>
+    </view>
+    
+    <button class="login-btn" bindtap="login">登录</button>
+    
+    <view class="register-tip">
+      <text>还没有账号？</text>
+      <text class="link" bindtap="register">立即注册</text>
+    </view>
+  </view>
+  
+  <view class="demo-accounts">
+    <text class="title">演示账号</text>
+    <view class="account-item" bindtap="fillDemo" data-id="admin" data-pwd="admin123">
+      <text>管理员：admin / admin123</text>
+    </view>
+    <view class="account-item" bindtap="fillDemo" data-id="S2024001" data-pwd="123456">
+      <text>学生：李明 / 123456</text>
+    </view>
+  </view>
+</view>

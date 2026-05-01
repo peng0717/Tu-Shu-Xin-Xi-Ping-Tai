@@ -1,0 +1,47 @@
+<!-- 我的借阅记录 -->
+<view class="container">
+  <!-- 标签页 -->
+  <view class="tabs">
+    <view class="tab {{tab === 'borrowed' ? 'active' : ''}}" bindtap="switchTab" data-tab="borrowed">
+      在借 ({{borrowedCount}})
+    </view>
+    <view class="tab {{tab === 'returned' ? 'active' : ''}}" bindtap="switchTab" data-tab="returned">
+      已还 ({{returnedCount}})
+    </view>
+  </view>
+  
+  <!-- 借阅列表 -->
+  <view class="borrow-list">
+    <view class="borrow-item {{item.is_overdue ? 'overdue' : ''}}" wx:for="{{records}}" wx:key="id" bindtap="goDetail" data-id="{{item.book_id}}">
+      <image class="book-cover" src="{{item.cover_url || 'https://via.placeholder.com/60x80/667eea/ffffff?text=无封面'}}" mode="aspectFill"></image>
+      <view class="book-info">
+        <text class="book-title">{{item.title}}</text>
+        <text class="book-author">{{item.author || '未知作者'}}</text>
+        <view class="borrow-info">
+          <text class="date">借阅：{{item.borrow_date}}</text>
+          <text class="date">到期：{{item.due_date}}</text>
+        </view>
+        <view class="status {{item.status}}">
+          <text wx:if="{{item.status === 'borrowed' && item.is_overdue}}" class="overdue-tag">⚠️ 已逾期</text>
+          <text wx:elif="{{item.status === 'borrowed'}}">📖 在借中</text>
+          <text wx:else>✅ 已归还</text>
+        </view>
+      </view>
+      <view class="actions" wx:if="{{item.status === 'borrowed'}}">
+        <view class="action-btn renew" bindtap="renew" data-id="{{item.book_id}}" catchtap="">续借</view>
+        <view class="action-btn return" bindtap="returnBook" data-id="{{item.book_id}}" catchtap="">还书</view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{records.length === 0 && !loading}}">
+    <text class="icon">📚</text>
+    <text>暂无借阅记录</text>
+  </view>
+  
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>

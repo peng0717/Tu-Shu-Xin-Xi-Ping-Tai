@@ -1,0 +1,42 @@
+{
+  "miniprogramRoot": "miniprogram/",
+  "projectname": "图书信息平台",
+  "appid": "wx07dd1d4fdd2e6908",
+  "compileType": "miniprogram",
+  "libVersion": "2.19.0",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "preloadBackgroundData": false,
+    "minified": true,
+    "newFeature": true,
+    "coverView": true,
+    "nodeModules": false,
+    "autoAudits": false,
+    "showShadowRootInWxmlPanel": true,
+    "scopeDataCheck": false,
+    "uglifyFileName": false,
+    "checkInvalidKey": true,
+    "checkSiteMap": true,
+    "uploadWithSourceMap": true,
+    "compileHotReLoad": false,
+    "lazyloadPlaceholderEnable": false,
+    "useMultiFrameRuntime": true,
+    "useApiHook": true,
+    "useApiHostProcess": true,
+    "showES6CompileOption": false,
+    "minifyWXSS": true,
+    "disableMixSelf": true,
+    "minifyWXML": true,
+    "showBatchUploadDialog": true,
+    "useApiCache": true
+  },
+  "condition": {},
+  "srcMiniprogramRoot": "miniprogram/",
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  }
+}

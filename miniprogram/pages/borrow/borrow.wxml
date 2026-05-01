@@ -1,0 +1,50 @@
+<!-- 借书页 -->
+<view class="container">
+  <view class="header-tip">
+    <text>📖 扫描图书ISBN条码</text>
+    <text class="sub">对准条码即可自动识别</text>
+  </view>
+  
+  <!-- 扫码按钮 -->
+  <view class="scan-btn" bindtap="scanISBN">
+    <view class="scan-icon">📷</view>
+    <text>点击扫描ISBN</text>
+  </view>
+  
+  <!-- 手动输入 -->
+  <view class="manual-input">
+    <text class="title">或手动输入ISBN</text>
+    <view class="input-row">
+      <input class="isbn-input" placeholder="请输入ISBN条码" value="{{isbn}}" bindinput="onInput" confirm-type="done"/>
+      <button class="query-btn" bindtap="queryBook">查询</button>
+    </view>
+  </view>
+  
+  <!-- 查询结果 -->
+  <view class="result-card" wx:if="{{book.id}}">
+    <image class="book-cover" src="{{book.cover_url || 'https://via.placeholder.com/80x110/667eea/ffffff?text=无封面'}}" mode="aspectFill"></image>
+    <view class="book-info">
+      <text class="book-title">{{book.title}}</text>
+      <text class="book-author">{{book.author || '未知作者'}}</text>
+      <text class="book-status {{book.available_count > 0 ? 'available' : 'unavailable'}}">
+        {{book.available_count > 0 ? '可借' : '已借完'}}
+      </text>
+    </view>
+  </view>
+  
+  <!-- 借阅按钮 -->
+  <view class="borrow-btn" wx:if="{{book.id && book.available_count > 0}}" bindtap="borrowBook">
+    确认借阅此书
+  </view>
+  
+  <!-- 历史记录 -->
+  <view class="history" wx:if="{{history.length > 0}}">
+    <text class="title">最近扫描</text>
+    <view class="history-list">
+      <view class="history-item" wx:for="{{history}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+        <text>{{item.title}}</text>
+        <text class="time">{{item.time}}</text>
+      </view>
+    </view>
+  </view>
+</view>

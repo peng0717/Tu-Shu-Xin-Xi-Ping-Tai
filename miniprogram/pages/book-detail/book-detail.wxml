@@ -1,0 +1,44 @@
+<!-- 图书详情页 -->
+<view class="container" wx:if="{{book.id}}">
+  <!-- 图书信息 -->
+  <view class="book-header">
+    <image class="book-cover" src="{{book.cover_url || 'https://via.placeholder.com/150x210/667eea/ffffff?text=无封面'}}" mode="aspectFill"></image>
+    <view class="book-info">
+      <text class="book-title">{{book.title}}</text>
+      <text class="book-author">{{book.author || '未知作者'}}</text>
+      <text class="book-publisher">{{book.publisher || '未知出版社'}} {{book.publish_date ? '· ' + book.publish_date : ''}}</text>
+      <view class="book-tags">
+        <text class="tag">{{book.category_name || '未分类'}}</text>
+        <text class="tag location">📍 {{book.location || '待分配'}}</text>
+      </view>
+      <view class="book-count">
+        <view class="count-item">
+          <text class="count-num">{{book.total_count}}</text>
+          <text class="count-label">馆藏</text>
+        </view>
+        <view class="count-item">
+          <text class="count-num {{book.available_count > 0 ? 'available' : 'unavailable'}}">{{book.available_count}}</text>
+          <text class="count-label">可借</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 简介 -->
+  <view class="card" wx:if="{{book.description}}">
+    <text class="card-title">内容简介</text>
+    <text class="description">{{book.description}}</text>
+  </view>
+  
+  <!-- 操作按钮 -->
+  <view class="action-bar">
+    <view class="action-btn {{book.available_count > 0 ? 'borrow' : 'reserve'}}" bindtap="{{book.available_count > 0 ? 'borrowBook' : 'reserveBook'}}">
+      {{book.available_count > 0 ? '📖 立即借阅' : '📝 预约此书'}}
+    </view>
+  </view>
+</view>
+
+<!-- 加载中 -->
+<view class="loading" wx:if="{{!book.id}}">
+  <text>加载中...</text>
+</view>

@@ -1,0 +1,17 @@
+<!-- 公告详情页 -->
+<view class="container" wx:if="{{notice.id}}">
+  <view class="notice-header">
+    <text class="notice-title">{{notice.title}}</text>
+    <view class="notice-meta">
+      <text>发布者：{{notice.author_name}}</text>
+      <text>发布时间：{{notice.created_at}}</text>
+    </view>
+  </view>
+  <view class="notice-body">
+    <text>{{notice.content}}</text>
+  </view>
+</view>
+
+<view class="loading" wx:if="{{!notice.id}}">
+  <text>加载中...</text>
+</view>

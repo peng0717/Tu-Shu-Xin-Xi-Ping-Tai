@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书管理 - 图书馆后台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f5f5f5; }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 0;
+            color: white;
+        }
+        .sidebar a { color: rgba(255,255,255,0.8); padding: 12px 20px; display: block; text-decoration: none; transition: all 0.3s; }
+        .sidebar a:hover, .sidebar a.active { color: white; background: rgba(255,255,255,0.1); }
+        .sidebar a i { margin-right: 10px; }
+        .content { margin-left: 250px; padding: 20px; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+    </style>
+</head>
+<body>
+    <script>if(!localStorage.getItem('adminToken'))window.location.href='/admin/login';</script>
+    
+    <div class="sidebar">
+        <h4 class="px-3 mb-4"><i class="bi bi-book"></i> 图书馆管理</h4>
+        <a href="/admin"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/admin/books" class="active"><i class="bi bi-book"></i> 图书管理</a>
+        <a href="/admin/borrows"><i class="bi bi-arrow-left-right"></i> 借还管理</a>
+        <a href="/admin/users"><i class="bi bi-people"></i> 读者管理</a>
+        <a href="/admin/reservations"><i class="bi bi-calendar-check"></i> 预约管理</a>
+        <a href="/admin/notices"><i class="bi bi-megaphone"></i> 公告管理</a>
+        <a href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> 退出</a>
+    </div>
+    
+    <div class="content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>图书管理</h2>
+            <div>
+                <button class="btn btn-primary" onclick="showAddModal()">
+                    <i class="bi bi-plus-circle"></i> 添加图书
+                </button>
+                <button class="btn btn-outline-primary ms-2" onclick="showIsbnModal()">
+                    <i class="bi bi-upc-scan"></i> ISBN扫码添加
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="searchKeyword" placeholder="搜索书名、作者、ISBN">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="categoryFilter">
+                            <option value="">全部分类</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" onclick="loadBooks()">
+                            <i class="bi bi-search"></i> 搜索
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>封面</th>
+                                <th>书名</th>
+                                <th>作者</th>
+                                <th>ISBN</th>
+                                <th>分类</th>
+                                <th>在架/总量</th>
+                                <th>位置</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="booksTable">
+                            <tr><td colspan="8" class="text-center text-muted py-4">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <nav>
+                    <ul class="pagination justify-content-center" id="pagination"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加/编辑图书模态框 -->
+    <div class="modal fade" id="bookModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">添加图书</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="bookForm">
+                        <input type="hidden" id="bookId">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">ISBN</label>
+                                <input type="text" class="form-control" id="isbn" placeholder="978-xxx-xxx-xxx">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">书名 *</label>
+                                <input type="text" class="form-control" id="title" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">作者</label>
+                                <input type="text" class="form-control" id="author">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">出版社</label>
+                                <input type="text" class="form-control" id="publisher">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">出版日期</label>
+                                <input type="date" class="form-control" id="publishDate">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">分类</label>
+                                <select class="form-select" id="categoryId"></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">馆藏位置</label>
+                                <input type="text" class="form-control" id="location" placeholder="如：A-1-1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">数量</label>
+                                <input type="number" class="form-control" id="totalCount" value="1" min="1">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">封面URL</label>
+                                <input type="url" class="form-control" id="coverUrl">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">简介</label>
+                                <textarea class="form-control" id="description" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveBook()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const API_BASE = '/api';
+        const token = localStorage.getItem('adminToken');
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        let bookModal, currentPage = 1;
+        
+        function logout(){localStorage.clear();window.location.href='/admin/login';}
+        
+        async function loadCategories(){
+            const res = await axios.get(`${API_BASE}/books/categories`);
+            const select = document.getElementById('categoryId');
+            document.getElementById('categoryFilter').innerHTML = '<option value="">全部分类</option>';
+            select.innerHTML = '<option value="">无分类</option>';
+            res.data.categories.forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                document.getElementById('categoryFilter').innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        }
+        
+        async function loadBooks(page = 1){
+            currentPage = page;
+            const keyword = document.getElementById('searchKeyword').value;
+            const categoryId = document.getElementById('categoryFilter').value;
+            
+            let url = `${API_BASE}/books?page=${page}&page_size=10`;
+            if(keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+            if(categoryId) url += `&category_id=${categoryId}`;
+            
+            const res = await axios.get(url);
+            const {books, total, total_pages} = res.data;
+            
+            if(books.length === 0){
+                document.getElementById('booksTable').innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">暂无数据</td></tr>';
+            }else{
+                let html = '';
+                books.forEach(book => {
+                    html += `<tr>
+                        <td><img src="${book.cover_url || 'https://via.placeholder.com/50x70'}" style="width:50px;height:70px;object-fit:cover;border-radius:4px;"></td>
+                        <td>${book.title}</td>
+                        <td>${book.author || '-'}</td>
+                        <td><code>${book.isbn || '-'}</code></td>
+                        <td>${book.category_name || '-'}</td>
+                        <td><span class="badge bg-${book.available_count > 0 ? 'success' : 'danger'}">${book.available_count}/${book.total_count}</span></td>
+                        <td>${book.location || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editBook(${book.id})"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteBook(${book.id})"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>`;
+                });
+                document.getElementById('booksTable').innerHTML = html;
+            }
+            
+            // 分页
+            let pageHtml = '';
+            for(let i = 1; i <= total_pages; i++){
+                pageHtml += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" onclick="loadBooks(${i});return false;">${i}</a></li>`;
+            }
+            document.getElementById('pagination').innerHTML = pageHtml;
+        }
+        
+        function showAddModal(){
+            document.getElementById('modalTitle').textContent = '添加图书';
+            document.getElementById('bookForm').reset();
+            document.getElementById('bookId').value = '';
+            bookModal.show();
+        }
+        
+        async function showIsbnModal(){
+            const isbn = prompt('请输入ISBN条码：');
+            if(!isbn) return;
+            
+            try {
+                const res = await axios.get(`${API_BASE}/books/isbn/query?isbn=${isbn}`);
+                if(res.data.success){
+                    const data = res.data.data;
+                    document.getElementById('isbn').value = isbn;
+                    document.getElementById('title').value = data.title;
+                    document.getElementById('author').value = data.author;
+                    document.getElementById('publisher').value = data.publisher;
+                    document.getElementById('publishDate').value = data.publish_date;
+                    document.getElementById('coverUrl').value = data.cover_url;
+                    document.getElementById('description').value = data.description;
+                    document.getElementById('modalTitle').textContent = '添加图书（ISBN自动填充）';
+                }else{
+                    alert('未找到该ISBN的图书信息：' + res.data.error);
+                }
+            }catch(e){
+                alert('查询失败，请手动输入');
+            }
+            bookModal.show();
+        }
+        
+        async function editBook(id){
+            const res = await axios.get(`${API_BASE}/books/${id}`);
+            const book = res.data.book;
+            
+            document.getElementById('modalTitle').textContent = '编辑图书';
+            document.getElementById('bookId').value = book.id;
+            document.getElementById('isbn').value = book.isbn;
+            document.getElementById('title').value = book.title;
+            document.getElementById('author').value = book.author;
+            document.getElementById('publisher').value = book.publisher;
+            document.getElementById('publishDate').value = book.publish_date;
+            document.getElementById('categoryId').value = book.category_id || '';
+            document.getElementById('location').value = book.location;
+            document.getElementById('totalCount').value = book.total_count;
+            document.getElementById('coverUrl').value = book.cover_url;
+            document.getElementById('description').value = book.description;
+            
+            bookModal.show();
+        }
+        
+        async function saveBook(){
+            const id = document.getElementById('bookId').value;
+            const data = {
+                isbn: document.getElementById('isbn').value,
+                title: document.getElementById('title').value,
+                author: document.getElementById('author').value,
+                publisher: document.getElementById('publisher').value,
+                publish_date: document.getElementById('publishDate').value,
+                category_id: document.getElementById('categoryId').value || null,
+                location: document.getElementById('location').value,
+                total_count: parseInt(document.getElementById('totalCount').value),
+                cover_url: document.getElementById('coverUrl').value,
+                description: document.getElementById('description').value
+            };
+            
+            try {
+                if(id){
+                    await axios.put(`${API_BASE}/books/${id}`, data);
+                    alert('更新成功');
+                }else{
+                    data.available_count = data.total_count;
+                    await axios.post(`${API_BASE}/books`, data);
+                    alert('添加成功');
+                }
+                bookModal.hide();
+                loadBooks(currentPage);
+            }catch(e){
+                alert(e.response?.data?.error || '保存失败');
+            }
+        }
+        
+        async function deleteBook(id){
+            if(!confirm('确定要删除这本书吗？')) return;
+            try {
+                await axios.delete(`${API_BASE}/books/${id}`);
+                alert('删除成功');
+                loadBooks(currentPage);
+            }catch(e){
+                alert(e.response?.data?.error || '删除失败');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            bookModal = new bootstrap.Modal(document.getElementById('bookModal'));
+            await loadCategories();
+            loadBooks();
+            
+            document.getElementById('searchKeyword').addEventListener('keypress', e => {
+                if(e.key === 'Enter') loadBooks();
+            });
+        });
+    </script>
+</body>
+</html>

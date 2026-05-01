@@ -1,0 +1,105 @@
+/* 登录页样式 */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  padding: 60px 24px 40px;
+}
+
+.logo {
+  text-align: center;
+  color: #fff;
+  margin-bottom: 50px;
+}
+
+.logo .icon {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.logo .title {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.logo .sub {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.form {
+  background: #fff;
+  border-radius: 20px;
+  padding: 30px 24px;
+}
+
+.input-group {
+  margin-bottom: 20px;
+}
+
+.input-group .label {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.input-group .input {
+  width: 100%;
+  background: #f5f5f5;
+  border-radius: 25px;
+  padding: 14px 20px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.login-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 25px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+.login-btn:active {
+  opacity: 0.9;
+}
+
+.register-tip {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.register-tip .link {
+  color: #667eea;
+  margin-left: 8px;
+}
+
+.demo-accounts {
+  margin-top: 30px;
+  color: rgba(255,255,255,0.8);
+}
+
+.demo-accounts .title {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.account-item {
+  background: rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 10px 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  text-align: center;
+}

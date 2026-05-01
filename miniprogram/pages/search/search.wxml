@@ -1,0 +1,49 @@
+<!-- 搜索页 -->
+<view class="container">
+  <!-- 搜索框 -->
+  <view class="search-header">
+    <view class="search-input-wrap">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索书名、作者或ISBN" value="{{keyword}}" bindinput="onInput" bindconfirm="search" confirm-type="search" focus="{{focus}}"/>
+      <text class="clear-icon" wx:if="{{keyword}}" bindtap="clearKeyword">✕</text>
+    </view>
+    <text class="cancel-btn" bindtap="cancel">取消</text>
+  </view>
+  
+  <!-- 搜索结果 -->
+  <view class="result-list" wx:if="{{keyword && books.length > 0}}">
+    <view class="book-item" wx:for="{{books}}" wx:key="id" bindtap="goBookDetail" data-id="{{item.id}}">
+      <image class="book-cover" src="{{item.cover_url || 'https://via.placeholder.com/80x110/667eea/ffffff?text=无封面'}}" mode="aspectFill"></image>
+      <view class="book-info">
+        <text class="book-title">{{item.title}}</text>
+        <text class="book-author">{{item.author || '未知作者'}}</text>
+        <text class="book-publisher">{{item.publisher || '未知出版社'}}</text>
+        <view class="book-meta">
+          <text class="tag">{{item.category_name || '未分类'}}</text>
+          <text class="available {{item.available_count > 0 ? 'yes' : 'no'}}">
+            {{item.available_count > 0 ? '在架 ' + item.available_count : '已借完'}}
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{keyword && books.length === 0 && !loading}}">
+    <text class="icon">📚</text>
+    <text>未找到相关图书</text>
+    <text class="sub">换个关键词试试吧</text>
+  </view>
+  
+  <!-- 未搜索 -->
+  <view class="empty-state" wx:if="{{!keyword && !loading}}">
+    <text class="icon">🔍</text>
+    <text>搜索图书</text>
+    <text class="sub">输入书名、作者或ISBN搜索</text>
+  </view>
+  
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>搜索中...</text>
+  </view>
+</view>

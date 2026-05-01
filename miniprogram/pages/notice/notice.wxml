@@ -1,0 +1,24 @@
+<!-- 公告列表页 -->
+<view class="container">
+  <view class="notice-list">
+    <view class="notice-item" wx:for="{{notices}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="notice-icon">📢</view>
+      <view class="notice-content">
+        <text class="notice-title">{{item.title}}</text>
+        <text class="notice-date">{{item.created_at}}</text>
+      </view>
+      <text class="arrow">></text>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{notices.length === 0 && !loading}}">
+    <text class="icon">📢</text>
+    <text>暂无公告</text>
+  </view>
+  
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>
