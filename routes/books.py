@@ -5,7 +5,7 @@
 from flask import Blueprint, request, jsonify
 from models import get_db_connection
 from utils.auth import token_required, admin_required, g
-from utils.isbn_query import query_isbn
+from utils.isbn_query import query_isbn, search_book_by_title
 
 books_bp = Blueprint('books', __name__)
 
@@ -60,6 +60,17 @@ def get_books():
         'page_size': page_size,
         'total_pages': (total + page_size - 1) // page_size
     })
+
+
+@books_bp.route('/search', methods=['GET'])
+def search_books_online():
+    """通过书名在线搜索图书信息"""
+    keyword = request.args.get('q', '')
+    if not keyword:
+        return jsonify({'error': '请输入搜索关键词'}), 400
+    
+    results = search_book_by_title(keyword)
+    return jsonify({'success': True, 'results': results})
 
 
 @books_bp.route('/hot', methods=['GET'])
@@ -204,17 +215,17 @@ def update_book(book_id):
                 description = COALESCE(?, description)
             WHERE id = ?
         ''', (
-            data.get('isbn'),
-            data.get('title'),
-            data.get('author'),
-            data.get('publisher'),
-            data.get('publish_date'),
-            data.get('cover_url'),
+            data.get('isbn', ''),
+            data.get('title', ''),
+            data.get('author', ''),
+            data.get('publisher', ''),
+            data.get('publish_date', ''),
+            data.get('cover_url', ''),
             data.get('category_id'),
-            data.get('location'),
+            data.get('location', ''),
             data.get('total_count'),
             data.get('available_count'),
-            data.get('description'),
+            data.get('description', ''),
             book_id
         ))
         conn.commit()
@@ -234,38 +245,55 @@ def delete_book(book_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 检查是否有借阅记录
+    # 检查图书是否存在
+    cursor.execute('SELECT * FROM books WHERE id = ?', (book_id,))
+    if not cursor.fetchone():
+        conn.close()
+        return jsonify({'error': '图书不存在'}), 404
+    
+    # 检查是否有未归还的借阅记录
     cursor.execute('SELECT COUNT(*) as count FROM borrow_records WHERE book_id = ? AND status = "borrowed"', (book_id,))
     if cursor.fetchone()['count'] > 0:
         conn.close()
         return jsonify({'error': '该图书有未归还的借阅记录，无法删除'}), 400
     
-    cursor.execute('DELETE FROM books WHERE id = ?', (book_id,))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'message': '图书删除成功'})
+    try:
+        cursor.execute('DELETE FROM books WHERE id = ?', (book_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': '图书删除成功'})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': f'删除失败: {str(e)}'}), 500
 
 
 @books_bp.route('/isbn/query', methods=['GET'])
-def query_book_by_isbn():
-    """通过ISBN查询图书信息（豆瓣API）"""
+def query_isbn_api():
+    """通过ISBN查询图书信息API"""
     isbn = request.args.get('isbn', '')
-    
     if not isbn:
-        return jsonify({'error': 'ISBN不能为空'}), 400
+        return jsonify({'success': False, 'error': 'ISBN不能为空'}), 400
     
     result = query_isbn(isbn)
     
     if result['success']:
-        return jsonify(result)
+        return jsonify({
+            'success': True,
+            'data': result['data'],
+            'source': result['source']
+        })
     else:
-        return jsonify(result), 404
+        return jsonify({
+            'success': False,
+            'error': result.get('error', '查询失败')
+        })
 
 
 @books_bp.route('/categories', methods=['GET'])
 def get_categories():
-    """获取图书分类"""
+    """获取图书分类列表"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -274,3 +302,60 @@ def get_categories():
     conn.close()
     
     return jsonify({'categories': categories})
+
+
+@books_bp.route('/categories', methods=['POST'])
+@admin_required
+def create_category():
+    """创建图书分类"""
+    data = request.get_json()
+    
+    if not data.get('name'):
+        return jsonify({'error': '分类名称不能为空'}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('INSERT INTO categories (name, description) VALUES (?, ?)',
+                      (data['name'], data.get('description', '')))
+        conn.commit()
+        category_id = cursor.lastrowid
+        conn.close()
+        
+        return jsonify({'message': '分类创建成功', 'category_id': category_id}), 201
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': f'创建失败: {str(e)}'}), 500
+
+
+@books_bp.route('/categories/<int:category_id>', methods=['DELETE'])
+@admin_required
+def delete_category(category_id):
+    """删除图书分类"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 检查分类是否存在
+    cursor.execute('SELECT * FROM categories WHERE id = ?', (category_id,))
+    if not cursor.fetchone():
+        conn.close()
+        return jsonify({'error': '分类不存在'}), 404
+    
+    # 检查分类下是否有图书
+    cursor.execute('SELECT COUNT(*) as count FROM books WHERE category_id = ?', (category_id,))
+    if cursor.fetchone()['count'] > 0:
+        conn.close()
+        return jsonify({'error': '该分类下有图书，无法删除'}), 400
+    
+    try:
+        cursor.execute('DELETE FROM categories WHERE id = ?', (category_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': '分类删除成功'})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': f'删除失败: {str(e)}'}), 500

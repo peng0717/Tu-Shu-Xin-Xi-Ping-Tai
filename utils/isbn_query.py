@@ -247,6 +247,29 @@ def _query_openlibrary(isbn):
     return None
 
 
+def _get_douban_book_description(url):
+    """从豆瓣书籍详情页获取简介信息"""
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        if response.status_code == 200:
+            # 尝试从页面中提取简介
+            # 方式1: 从 #link-report 提取
+            match = re.search(r'<div id="link-report"[^>]*>.*?<div class="intro"[^>]*>(.*?)</div>', response.text, re.DOTALL)
+            if match:
+                description = match.group(1)
+                # 清理HTML标签
+                description = re.sub(r'<[^>]+>', '', description).strip()
+                return description[:500] if len(description) > 500 else description
+            
+            # 方式2: 从 abstract 字段提取
+            match = re.search(r'"abstract"\s*:\s*"([^"]+)"', response.text)
+            if match:
+                return match.group(1)[:500] if len(match.group(1)) > 500 else match.group(1)
+    except Exception as e:
+        print(f"获取豆瓣详情失败: {e}")
+    return ''
+
+
 def query_isbn(isbn):
     """
     通过ISBN查询图书信息
@@ -288,8 +311,10 @@ def query_isbn(isbn):
 
 def search_book_by_title(keyword):
     """
-    通过书名搜索图书信息（模拟豆瓣搜索）
+    通过书名搜索图书信息（调用豆瓣搜索）
+    返回格式：[{'isbn': '', 'title': '', 'author': '', 'publisher': '', 'publish_date': '', 'cover_url': '', 'description': ''}, ...]
     """
+    # 先检查模拟数据中是否有匹配
     results = []
     keyword_lower = keyword.lower()
     
@@ -300,4 +325,56 @@ def search_book_by_title(keyword):
                 **book
             })
     
-    return results
+    # 调用豆瓣搜索
+    try:
+        url = f'https://search.douban.com/book/subject_search?search_text={requests.utils.quote(keyword)}&cat=1001'
+        response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        
+        if response.status_code == 200:
+            match = re.search(r'window\.__DATA__\s*=\s*(\{.*?\});', response.text)
+            if match:
+                data = json.loads(match.group(1))
+                items = data.get('items', [])
+                
+                for item in items[:10]:  # 最多返回10个结果
+                    try:
+                        title = item.get('title', '')
+                        cover_url = item.get('cover_url', '')
+                        abstract = item.get('abstract', '')
+                        url_link = item.get('url', '')
+                        book_id = item.get('id', '')
+                        
+                        # 解析abstract获取作者、出版社、出版日期
+                        parsed = _parse_douban_abstract(abstract)
+                        
+                        # 尝试获取详情页简介
+                        description = ''
+                        if book_id:
+                            detail_url = f'https://book.douban.com/subject/{book_id}/'
+                            description = _get_douban_book_description(detail_url)
+                        
+                        results.append({
+                            'isbn': '',  # 豆瓣搜索结果中没有ISBN
+                            'title': title,
+                            'author': parsed['author'],
+                            'publisher': parsed['publisher'],
+                            'publish_date': parsed['publish_date'],
+                            'cover_url': cover_url,
+                            'description': description
+                        })
+                    except Exception as e:
+                        print(f"解析豆瓣搜索结果失败: {e}")
+                        continue
+    except Exception as e:
+        print(f"豆瓣书名搜索请求失败: {e}")
+    
+    # 去重（根据书名）
+    seen_titles = set()
+    unique_results = []
+    for book in results:
+        title_key = book['title'].lower()
+        if title_key not in seen_titles:
+            seen_titles.add(title_key)
+            unique_results.append(book)
+    
+    return unique_results

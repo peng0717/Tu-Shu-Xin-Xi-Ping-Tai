@@ -23,6 +23,84 @@
         .sidebar a i { margin-right: 10px; }
         .content { margin-left: 250px; padding: 20px; }
         .card { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        
+        /* 扫码模态框样式 */
+        .scan-option-btn {
+            width: 100%;
+            padding: 25px 20px;
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+            background: #fff;
+            transition: all 0.3s;
+        }
+        .scan-option-btn:hover {
+            border-color: #667eea;
+            background: #f8f6ff;
+            transform: translateY(-2px);
+        }
+        .scan-option-btn i { font-size: 32px; margin-bottom: 8px; }
+        
+        /* 扫码区域红色对准线 */
+        .scanner-container {
+            position: relative;
+            display: inline-block;
+        }
+        .scanner-line {
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            top: 50%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #ff3b3b, transparent);
+            box-shadow: 0 0 8px #ff3b3b;
+            z-index: 10;
+            animation: scanLine 2s ease-in-out infinite;
+        }
+        @keyframes scanLine {
+            0%, 100% { top: 30%; }
+            50% { top: 70%; }
+        }
+        .scanner-frame {
+            border: 3px solid rgba(255,59,59,0.5);
+            border-radius: 8px;
+        }
+        
+        /* 书名搜索结果样式 */
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .search-result-item:hover {
+            background: #f8f6ff;
+            border-color: #667eea;
+        }
+        .search-result-item img {
+            width: 50px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+        .search-result-item .book-info {
+            flex: 1;
+        }
+        .search-result-item .book-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .search-result-item .book-meta {
+            font-size: 13px;
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -102,28 +180,87 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-upc-scan"></i> 扫描ISBN条码</h5>
+                    <h5 class="modal-title"><i class="bi bi-upc-scan"></i> 添加图书</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScanner()"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="isbnScanner" style="width:100%;"></div>
-                    <div id="scanResult" class="mt-3" style="display:none;">
-                        <div class="alert alert-info mb-2">扫描到ISBN：<strong id="scannedIsbn"></strong></div>
-                        <div id="scanBookInfo" class="small text-muted"></div>
+                    <!-- 选项界面 -->
+                    <div id="scanOptions" class="text-center">
+                        <button class="scan-option-btn" onclick="startCameraScan()">
+                            <i class="bi bi-camera-fill text-primary"></i><br>
+                            <strong>📷 摄像头扫码</strong>
+                        </button>
+                        <button class="scan-option-btn" onclick="showManualInput()">
+                            <i class="bi bi-keyboard text-success"></i><br>
+                            <strong>✍️ 手动输入ISBN</strong>
+                        </button>
+                        <button class="scan-option-btn" onclick="showTitleSearch()">
+                            <i class="bi bi-search text-warning"></i><br>
+                            <strong>🔍 按书名搜索</strong>
+                        </button>
                     </div>
-                    <div id="scanError" class="alert alert-warning mt-2" style="display:none;"></div>
-                    <div class="mt-3 text-center">
-                        <span class="text-muted small">或手动输入ISBN：</span>
-                        <div class="input-group mt-2">
-                            <input type="text" class="form-control" id="manualIsbn" placeholder="输入ISBN码">
-                            <button class="btn btn-primary" onclick="queryManualIsbn()">查询</button>
+                    
+                    <!-- 摄像头扫码界面 -->
+                    <div id="cameraScanArea" style="display:none;">
+                        <div class="text-center mb-2">
+                            <small class="text-muted">将条形码对准下方红色线条位置</small>
+                        </div>
+                        <div class="scanner-container">
+                            <div id="isbnScanner" style="width:100%;"></div>
+                            <div class="scanner-line"></div>
+                        </div>
+                        <div id="scanResult" class="mt-3" style="display:none;">
+                            <div class="alert alert-info mb-2">扫描到ISBN：<strong id="scannedIsbn"></strong></div>
+                            <div id="scanBookInfo" class="small text-muted"></div>
+                        </div>
+                        <div id="scanError" class="alert alert-warning mt-2" style="display:none;"></div>
+                        <div class="mt-3 text-center">
+                            <button class="btn btn-secondary btn-sm" onclick="backToOptions()">← 返回选择</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 手动输入界面 -->
+                    <div id="manualInputArea" style="display:none;">
+                        <div class="mb-3">
+                            <label class="form-label">输入ISBN码</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="manualIsbn" placeholder="输入ISBN码，如：9787111213826">
+                                <button class="btn btn-primary" onclick="queryManualIsbn()">查询</button>
+                            </div>
+                        </div>
+                        <div id="manualResult" class="mt-3" style="display:none;">
+                            <div class="alert alert-info mb-2">ISBN：<strong id="manualIsbnDisplay"></strong></div>
+                            <div id="manualBookInfo" class="small text-muted"></div>
+                        </div>
+                        <div id="manualError" class="alert alert-warning mt-2" style="display:none;"></div>
+                        <div class="mt-3 text-center">
+                            <button class="btn btn-secondary btn-sm" onclick="backToOptions()">← 返回选择</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 按书名搜索界面 -->
+                    <div id="titleSearchArea" style="display:none;">
+                        <div class="mb-3">
+                            <label class="form-label">输入书名或关键词</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="searchKeywordInput" placeholder="输入书名或关键词">
+                                <button class="btn btn-primary" onclick="doTitleSearch()">
+                                    <i class="bi bi-search"></i> 搜索
+                                </button>
+                            </div>
+                        </div>
+                        <div id="searchResults" class="mt-3">
+                            <small class="text-muted">输入关键词后点击搜索按钮</small>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <button class="btn btn-secondary btn-sm" onclick="backToOptions()">← 返回选择</button>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" id="scanModalFooter" style="display:none;">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="stopScanner()">关闭</button>
-                    <button type="button" class="btn btn-primary" id="useScannedBtn" style="display:none;" onclick="useScannedIsbn()">
-                        <i class="bi bi-check-circle"></i> 使用此ISBN添加
+                    <button type="button" class="btn btn-primary" id="useScannedBtn" onclick="useScannedData()">
+                        <i class="bi bi-check-circle"></i> 使用此信息添加
                     </button>
                 </div>
             </div>
@@ -201,7 +338,9 @@
         const token = localStorage.getItem('adminToken');
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
-        let bookModal, currentPage = 1;
+        let bookModal, scannerModal, currentPage = 1;
+        let html5QrCode = null;
+        let selectedBookData = null;
         
         function logout(){localStorage.clear();window.location.href='/admin/login';}
         
@@ -265,41 +404,85 @@
             bookModal.show();
         }
         
-        let html5QrCode = null;
-        let scannedIsbnValue = '';
-        let scannedBookData = null;
+        // ========== 扫码模态框相关函数 ==========
         
-        async function showIsbnModal(){
-            scannedIsbnValue = '';
-            scannedBookData = null;
+        function showIsbnModal(){
+            selectedBookData = null;
+            
+            // 重置所有区域
+            document.getElementById('scanOptions').style.display = 'block';
+            document.getElementById('cameraScanArea').style.display = 'none';
+            document.getElementById('manualInputArea').style.display = 'none';
+            document.getElementById('titleSearchArea').style.display = 'none';
+            document.getElementById('scanModalFooter').style.display = 'none';
             document.getElementById('scanResult').style.display = 'none';
             document.getElementById('scanError').style.display = 'none';
-            document.getElementById('useScannedBtn').style.display = 'none';
-            document.getElementById('manualIsbn').value = '';
+            document.getElementById('manualResult').style.display = 'none';
+            document.getElementById('manualError').style.display = 'none';
+            document.getElementById('searchResults').innerHTML = '<small class="text-muted">输入关键词后点击搜索按钮</small>';
             
-            const scannerModal = new bootstrap.Modal(document.getElementById('scannerModal'));
+            stopScanner();
+            scannerModal = new bootstrap.Modal(document.getElementById('scannerModal'));
             scannerModal.show();
-            
-            setTimeout(() => startScanner(), 500);
         }
         
+        function backToOptions(){
+            stopScanner();
+            document.getElementById('scanOptions').style.display = 'block';
+            document.getElementById('cameraScanArea').style.display = 'none';
+            document.getElementById('manualInputArea').style.display = 'none';
+            document.getElementById('titleSearchArea').style.display = 'none';
+            document.getElementById('scanModalFooter').style.display = 'none';
+            document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('scanError').style.display = 'none';
+        }
+        
+        function startCameraScan(){
+            document.getElementById('scanOptions').style.display = 'none';
+            document.getElementById('cameraScanArea').style.display = 'block';
+            setTimeout(() => startScanner(), 300);
+        }
+        
+        function showManualInput(){
+            document.getElementById('scanOptions').style.display = 'none';
+            document.getElementById('manualInputArea').style.display = 'block';
+            document.getElementById('manualIsbn').value = '';
+            document.getElementById('manualResult').style.display = 'none';
+            document.getElementById('manualError').style.display = 'none';
+        }
+        
+        function showTitleSearch(){
+            document.getElementById('scanOptions').style.display = 'none';
+            document.getElementById('titleSearchArea').style.display = 'block';
+            document.getElementById('searchKeywordInput').value = '';
+            document.getElementById('searchResults').innerHTML = '<small class="text-muted">输入关键词后点击搜索按钮</small>';
+        }
+        
+        // 启动摄像头扫码
         function startScanner(){
             if(html5QrCode) { html5QrCode.clear(); html5QrCode = null; }
             
             html5QrCode = new Html5Qrcode("isbnScanner");
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 120 }, formatsToSupport: [
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39
-                ]},
+                { 
+                    fps: 18, 
+                    qrbox: { width: 280, height: 120 }, 
+                    aspectRatio: 1.0,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E
+                    ]
+                },
                 onScanSuccess,
                 onScanFailure
             ).catch(err => {
                 document.getElementById('scanError').style.display = 'block';
-                document.getElementById('scanError').textContent = '无法启动摄像头，请手动输入ISBN码';
+                document.getElementById('scanError').textContent = '无法启动摄像头，请使用手动输入ISBN';
             });
         }
         
@@ -316,7 +499,7 @@
             let isbn = decodedText.replace(/[^0-9Xx]/g, '');
             if(isbn.length < 10){ return; }
             
-            scannedIsbnValue = isbn;
+            selectedBookData = { isbn: isbn };
             document.getElementById('scannedIsbn').textContent = isbn;
             document.getElementById('scanResult').style.display = 'block';
             document.getElementById('scanError').style.display = 'none';
@@ -324,66 +507,153 @@
             try {
                 const res = await axios.get(`${API_BASE}/books/isbn/query?isbn=${isbn}`);
                 if(res.data.success){
-                    scannedBookData = res.data.data;
+                    selectedBookData = {
+                        isbn: isbn,
+                        title: res.data.data.title || '',
+                        author: res.data.data.author || '',
+                        publisher: res.data.data.publisher || '',
+                        publish_date: res.data.data.publish_date || '',
+                        cover_url: res.data.data.cover_url || '',
+                        description: res.data.data.description || ''
+                    };
                     document.getElementById('scanBookInfo').innerHTML = 
                         `<strong>${res.data.data.title}</strong><br>作者：${res.data.data.author || '-'}<br>出版社：${res.data.data.publisher || '-'}`;
                 } else {
-                    scannedBookData = null;
                     document.getElementById('scanBookInfo').innerHTML = '<span class="text-warning">未查到图书信息，将手动填写</span>';
                 }
             }catch(e){
-                scannedBookData = null;
                 document.getElementById('scanBookInfo').innerHTML = '<span class="text-warning">查询失败，将手动填写</span>';
             }
             
-            document.getElementById('useScannedBtn').style.display = 'inline-block';
+            document.getElementById('scanModalFooter').style.display = 'flex';
         }
         
         function onScanFailure(){}
         
+        // 手动输入ISBN查询
         async function queryManualIsbn(){
             const isbn = document.getElementById('manualIsbn').value.trim();
             if(!isbn) return;
             
-            scannedIsbnValue = isbn;
-            document.getElementById('scannedIsbn').textContent = isbn;
-            document.getElementById('scanResult').style.display = 'block';
-            document.getElementById('scanError').style.display = 'none';
+            selectedBookData = { isbn: isbn };
+            document.getElementById('manualIsbnDisplay').textContent = isbn;
+            document.getElementById('manualResult').style.display = 'block';
+            document.getElementById('manualError').style.display = 'none';
             
             try {
                 const res = await axios.get(`${API_BASE}/books/isbn/query?isbn=${isbn}`);
                 if(res.data.success){
-                    scannedBookData = res.data.data;
-                    document.getElementById('scanBookInfo').innerHTML = 
+                    selectedBookData = {
+                        isbn: isbn,
+                        title: res.data.data.title || '',
+                        author: res.data.data.author || '',
+                        publisher: res.data.data.publisher || '',
+                        publish_date: res.data.data.publish_date || '',
+                        cover_url: res.data.data.cover_url || '',
+                        description: res.data.data.description || ''
+                    };
+                    document.getElementById('manualBookInfo').innerHTML = 
                         `<strong>${res.data.data.title}</strong><br>作者：${res.data.data.author || '-'}<br>出版社：${res.data.data.publisher || '-'}`;
                 } else {
-                    scannedBookData = null;
-                    document.getElementById('scanBookInfo').innerHTML = '<span class="text-warning">未查到图书信息，将手动填写</span>';
+                    document.getElementById('manualBookInfo').innerHTML = '<span class="text-warning">未查到图书信息，将手动填写</span>';
                 }
             }catch(e){
-                scannedBookData = null;
-                document.getElementById('scanBookInfo').innerHTML = '<span class="text-warning">查询失败，将手动填写</span>';
+                document.getElementById('manualBookInfo').innerHTML = '<span class="text-warning">查询失败，将手动填写</span>';
             }
             
-            document.getElementById('useScannedBtn').style.display = 'inline-block';
+            document.getElementById('scanModalFooter').style.display = 'flex';
         }
         
-        function useScannedIsbn(){
-            stopScanner();
-            bootstrap.Modal.getInstance(document.getElementById('scannerModal')).hide();
+        // 按书名搜索
+        async function doTitleSearch(){
+            const keyword = document.getElementById('searchKeywordInput').value.trim();
+            if(!keyword){
+                document.getElementById('searchResults').innerHTML = '<span class="text-warning">请输入搜索关键词</span>';
+                return;
+            }
             
+            document.getElementById('searchResults').innerHTML = '<div class="text-center py-3"><span class="text-muted">搜索中...</span></div>';
+            
+            try {
+                const res = await axios.get(`${API_BASE}/books/search?q=${encodeURIComponent(keyword)}`);
+                
+                if(res.data.results && res.data.results.length > 0){
+                    let html = '';
+                    res.data.results.forEach((book, index) => {
+                        html += `<div class="search-result-item" onclick="selectSearchResult(${index})">
+                            <img src="${book.cover_url || 'https://via.placeholder.com/50x70'}" alt="封面">
+                            <div class="book-info">
+                                <div class="book-title">${book.title || '未知书名'}</div>
+                                <div class="book-meta">
+                                    ${book.author ? '作者：' + book.author + ' | ' : ''}
+                                    ${book.publisher ? '出版社：' + book.publisher : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    document.getElementById('searchResults').innerHTML = html;
+                    
+                    // 保存搜索结果供点击选择
+                    window.searchResultsData = res.data.results;
+                } else {
+                    document.getElementById('searchResults').innerHTML = '<div class="alert alert-warning">未找到相关图书，请尝试其他关键词</div>';
+                }
+            }catch(e){
+                document.getElementById('searchResults').innerHTML = '<div class="alert alert-danger">搜索失败，请重试</div>';
+            }
+        }
+        
+        // 选择搜索结果
+        function selectSearchResult(index){
+            const book = window.searchResultsData[index];
+            if(!book) return;
+            
+            selectedBookData = {
+                isbn: book.isbn || '',
+                title: book.title || '',
+                author: book.author || '',
+                publisher: book.publisher || '',
+                publish_date: book.publish_date || '',
+                cover_url: book.cover_url || '',
+                description: book.description || ''
+            };
+            
+            // 关闭扫码模态框，打开添加表单
+            scannerModal.hide();
+            
+            // 填充表单
+            document.getElementById('modalTitle').textContent = '添加图书（自动填充）';
             document.getElementById('bookForm').reset();
             document.getElementById('bookId').value = '';
-            document.getElementById('isbn').value = scannedIsbnValue;
-            document.getElementById('modalTitle').textContent = '添加图书（ISBN自动填充）';
+            document.getElementById('isbn').value = selectedBookData.isbn || '';
+            document.getElementById('title').value = selectedBookData.title || '';
+            document.getElementById('author').value = selectedBookData.author || '';
+            document.getElementById('publisher').value = selectedBookData.publisher || '';
+            document.getElementById('publishDate').value = selectedBookData.publish_date || '';
+            document.getElementById('coverUrl').value = selectedBookData.cover_url || '';
+            document.getElementById('description').value = selectedBookData.description || '';
             
-            if(scannedBookData){
-                document.getElementById('title').value = scannedBookData.title || '';
-                document.getElementById('author').value = scannedBookData.author || '';
-                document.getElementById('publisher').value = scannedBookData.publisher || '';
-                document.getElementById('publishDate').value = scannedBookData.publish_date || '';
-                document.getElementById('coverUrl').value = scannedBookData.cover_url || '';
-                document.getElementById('description').value = scannedBookData.description || '';
+            bookModal.show();
+        }
+        
+        // 使用扫描/输入的ISBN数据
+        function useScannedData(){
+            stopScanner();
+            scannerModal.hide();
+            
+            // 填充表单
+            document.getElementById('modalTitle').textContent = '添加图书（ISBN自动填充）';
+            document.getElementById('bookForm').reset();
+            document.getElementById('bookId').value = '';
+            
+            if(selectedBookData){
+                document.getElementById('isbn').value = selectedBookData.isbn || '';
+                document.getElementById('title').value = selectedBookData.title || '';
+                document.getElementById('author').value = selectedBookData.author || '';
+                document.getElementById('publisher').value = selectedBookData.publisher || '';
+                document.getElementById('publishDate').value = selectedBookData.publish_date || '';
+                document.getElementById('coverUrl').value = selectedBookData.cover_url || '';
+                document.getElementById('description').value = selectedBookData.description || '';
             }
             
             bookModal.show();
@@ -458,6 +728,16 @@
             
             document.getElementById('searchKeyword').addEventListener('keypress', e => {
                 if(e.key === 'Enter') loadBooks();
+            });
+            
+            // 书名搜索回车事件
+            document.getElementById('searchKeywordInput').addEventListener('keypress', e => {
+                if(e.key === 'Enter') doTitleSearch();
+            });
+            
+            // ISBN输入回车事件
+            document.getElementById('manualIsbn').addEventListener('keypress', e => {
+                if(e.key === 'Enter') queryManualIsbn();
             });
         });
     </script>
