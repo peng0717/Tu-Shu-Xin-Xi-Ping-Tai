@@ -1,14 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-ISBN查询工具 - 调用OpenLibrary和Google Books API获取图书信息
+ISBN查询工具 - 调用豆瓣搜索、Google Books API获取图书信息
 """
 import requests
-from config import OPENLIBRARY_API, GOOGLE_BOOKS_API
+import json
+import re
+from config import GOOGLE_BOOKS_API, OPENLIBRARY_API
 
 # API超时时间（秒）
-TIMEOUT = 5
+TIMEOUT = 8
 
-# 模拟图书数据（API不可用时的降级方案）
+# 请求头（模拟浏览器访问豆瓣）
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+}
+
+# 模拟图书数据（所有API不可用时的降级方案）
 MOCK_BOOKS = {
     '9787111213826': {
         'title': 'Python编程：从入门到实践',
@@ -93,23 +102,109 @@ MOCK_BOOKS = {
 }
 
 
-def query_isbn(isbn):
+def _parse_douban_abstract(abstract):
+    """解析豆瓣搜索结果中的abstract字段，提取作者、出版社等信息
+    abstract格式示例: "[美]埃里克·马瑟斯（Eric Matthes） / 袁国忠 / 人民邮电出版社 / 2020-10 / 109.8"
     """
-    通过ISBN查询图书信息
-    查询顺序：MOCK_BOOKS → OpenLibrary → Google Books → 失败
-    """
-    # 清理ISBN（去除空格和特殊字符）
-    isbn = isbn.strip().replace('-', '').replace(' ', '')
+    parts = [p.strip() for p in abstract.split('/')]
+    author = parts[0] if len(parts) > 0 else ''
+    translator = parts[1] if len(parts) > 1 and '译' in parts[1] else ''
+    publisher = ''
+    publish_date = ''
     
-    # 先检查模拟数据
-    if isbn in MOCK_BOOKS:
-        return {
-            'success': True,
-            'source': 'mock',
-            'data': MOCK_BOOKS[isbn]
-        }
+    for part in parts[1:]:
+        part = part.strip()
+        # 匹配出版社（中文或英文名称）
+        if not publisher and re.search(r'[\u4e00-\u9fff出版社]', part) and not re.match(r'^\d', part):
+            publisher = part
+        # 匹配出版日期
+        if not publish_date and re.match(r'^\d{4}', part):
+            publish_date = part
     
-    # 第一优先：OpenLibrary API
+    if translator:
+        author = f"{author} / {translator}"
+    
+    return {
+        'author': author,
+        'publisher': publisher,
+        'publish_date': publish_date
+    }
+
+
+def _query_douban(isbn):
+    """通过豆瓣搜索页面查询图书信息"""
+    try:
+        url = f'https://search.douban.com/book/subject_search?search_text={isbn}'
+        response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        
+        if response.status_code == 200:
+            match = re.search(r'window\.__DATA__\s*=\s*(\{.*?\});', response.text)
+            if match:
+                data = json.loads(match.group(1))
+                items = data.get('items', [])
+                
+                if items:
+                    item = items[0]
+                    title = item.get('title', '')
+                    cover_url = item.get('cover_url', '')
+                    abstract = item.get('abstract', '')
+                    
+                    parsed = _parse_douban_abstract(abstract)
+                    
+                    return {
+                        'success': True,
+                        'source': 'douban_search',
+                        'data': {
+                            'title': title,
+                            'author': parsed['author'],
+                            'publisher': parsed['publisher'],
+                            'publish_date': parsed['publish_date'],
+                            'cover_url': cover_url,
+                            'description': ''
+                        }
+                    }
+    except Exception as e:
+        print(f"豆瓣搜索请求失败: {e}")
+    
+    return None
+
+
+def _query_google_books(isbn):
+    """通过Google Books API查询图书信息"""
+    try:
+        url = GOOGLE_BOOKS_API.format(isbn)
+        response = requests.get(url, timeout=TIMEOUT)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if 'items' in data and len(data['items']) > 0:
+                volume_info = data['items'][0]['volumeInfo']
+                
+                cover_url = ''
+                if 'imageLinks' in volume_info:
+                    cover_url = volume_info['imageLinks'].get('thumbnail', '').replace('http://', 'https://')
+                
+                return {
+                    'success': True,
+                    'source': 'google_books',
+                    'data': {
+                        'title': volume_info.get('title', ''),
+                        'author': ', '.join(volume_info.get('authors', [])),
+                        'publisher': volume_info.get('publisher', ''),
+                        'publish_date': volume_info.get('publishedDate', ''),
+                        'cover_url': cover_url,
+                        'description': volume_info.get('description', '')
+                    }
+                }
+    except Exception as e:
+        print(f"Google Books API请求失败: {e}")
+    
+    return None
+
+
+def _query_openlibrary(isbn):
+    """通过OpenLibrary API查询图书信息"""
     try:
         url = OPENLIBRARY_API.format(isbn)
         response = requests.get(url, timeout=TIMEOUT)
@@ -120,12 +215,10 @@ def query_isbn(isbn):
             
             if key in data:
                 book_data = data[key]
-                # 解析作者信息
                 authors = []
                 if 'authors' in book_data:
                     authors = [a['name'] for a in book_data['authors']]
                 
-                # 解析封面URL（优先large，其次medium，最后small）
                 cover_url = ''
                 if 'cover' in book_data:
                     cover = book_data['cover']
@@ -151,38 +244,41 @@ def query_isbn(isbn):
     except Exception as e:
         print(f"OpenLibrary API请求失败: {e}")
     
-    # 第二优先：Google Books API
-    try:
-        url = GOOGLE_BOOKS_API.format(isbn)
-        response = requests.get(url, timeout=TIMEOUT)
-        
-        if response.status_code == 200:
-            data = response.json()
-            
-            if 'items' in data and len(data['items']) > 0:
-                volume_info = data['items'][0]['volumeInfo']
-                
-                # 处理封面URL（把http换成https）
-                cover_url = ''
-                if 'imageLinks' in volume_info:
-                    cover_url = volume_info['imageLinks'].get('thumbnail', '').replace('http://', 'https://')
-                
-                return {
-                    'success': True,
-                    'source': 'google_books',
-                    'data': {
-                        'title': volume_info.get('title', ''),
-                        'author': ', '.join(volume_info.get('authors', [])),
-                        'publisher': volume_info.get('publisher', ''),
-                        'publish_date': volume_info.get('publishedDate', ''),
-                        'cover_url': cover_url,
-                        'description': volume_info.get('description', '')
-                    }
-                }
-    except Exception as e:
-        print(f"Google Books API请求失败: {e}")
+    return None
+
+
+def query_isbn(isbn):
+    """
+    通过ISBN查询图书信息
+    查询顺序：MOCK_BOOKS → 豆瓣搜索 → Google Books → OpenLibrary → 失败
+    """
+    # 清理ISBN（去除空格和特殊字符）
+    isbn = isbn.strip().replace('-', '').replace(' ', '')
     
-    # 如果所有API都失败，返回失败信息
+    # 先检查模拟数据
+    if isbn in MOCK_BOOKS:
+        return {
+            'success': True,
+            'source': 'mock',
+            'data': MOCK_BOOKS[isbn]
+        }
+    
+    # 豆瓣搜索（国内最稳定，中文书覆盖最好）
+    result = _query_douban(isbn)
+    if result:
+        return result
+    
+    # Google Books API
+    result = _query_google_books(isbn)
+    if result:
+        return result
+    
+    # OpenLibrary API
+    result = _query_openlibrary(isbn)
+    if result:
+        return result
+    
+    # 所有API都失败
     return {
         'success': False,
         'source': 'none',
