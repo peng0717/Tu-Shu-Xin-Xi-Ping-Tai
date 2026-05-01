@@ -188,15 +188,15 @@
                     <div id="scanOptions" class="text-center">
                         <button class="scan-option-btn" onclick="startCameraScan()">
                             <i class="bi bi-camera-fill text-primary"></i><br>
-                            <strong>📷 摄像头扫码</strong>
+                            <strong>摄像头扫码</strong>
                         </button>
                         <button class="scan-option-btn" onclick="showManualInput()">
                             <i class="bi bi-keyboard text-success"></i><br>
-                            <strong>✍️ 手动输入ISBN</strong>
+                            <strong>手动输入ISBN</strong>
                         </button>
                         <button class="scan-option-btn" onclick="showTitleSearch()">
                             <i class="bi bi-search text-warning"></i><br>
-                            <strong>🔍 按书名搜索</strong>
+                            <strong>按书名搜索</strong>
                         </button>
                     </div>
                     
@@ -460,29 +460,47 @@
         
         // 启动摄像头扫码
         function startScanner(){
-            if(html5QrCode) { html5QrCode.clear(); html5QrCode = null; }
+            stopScanner();
+            
+            const scannerEl = document.getElementById('isbnScanner');
+            if(!scannerEl) return;
+            scannerEl.innerHTML = '';
             
             html5QrCode = new Html5Qrcode("isbnScanner");
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { 
-                    fps: 18, 
-                    qrbox: { width: 280, height: 120 }, 
-                    aspectRatio: 1.0,
-                    formatsToSupport: [
-                        Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.EAN_8,
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.UPC_A,
-                        Html5QrcodeSupportedFormats.UPC_E
-                    ]
-                },
-                onScanSuccess,
-                onScanFailure
-            ).catch(err => {
+            
+            Html5Qrcode.getCameras().then(cameras => {
+                if(cameras && cameras.length > 0){
+                    const cameraId = cameras[cameras.length - 1].id;
+                    html5QrCode.start(
+                        cameraId,
+                        { 
+                            fps: 20, 
+                            qrbox: { width: 280, height: 120 }, 
+                            aspectRatio: 1.0,
+                            formatsToSupport: [
+                                Html5QrcodeSupportedFormats.EAN_13,
+                                Html5QrcodeSupportedFormats.EAN_8,
+                                Html5QrcodeSupportedFormats.CODE_128,
+                                Html5QrcodeSupportedFormats.CODE_39,
+                                Html5QrcodeSupportedFormats.UPC_A,
+                                Html5QrcodeSupportedFormats.UPC_E
+                            ]
+                        },
+                        onScanSuccess,
+                        onScanFailure
+                    ).catch(err => {
+                        console.error('摄像头启动失败:', err);
+                        document.getElementById('scanError').style.display = 'block';
+                        document.getElementById('scanError').textContent = '无法启动摄像头，请使用手动输入ISBN';
+                    });
+                } else {
+                    document.getElementById('scanError').style.display = 'block';
+                    document.getElementById('scanError').textContent = '未检测到摄像头，请使用手动输入ISBN';
+                }
+            }).catch(err => {
+                console.error('获取摄像头列表失败:', err);
                 document.getElementById('scanError').style.display = 'block';
-                document.getElementById('scanError').textContent = '无法启动摄像头，请使用手动输入ISBN';
+                document.getElementById('scanError').textContent = '无法访问摄像头，请使用手动输入ISBN';
             });
         }
         
