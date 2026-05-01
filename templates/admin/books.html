@@ -202,6 +202,14 @@
                     
                     <!-- 摄像头扫码界面 -->
                     <div id="cameraScanArea" style="display:none;">
+                        <!-- iframe提示：在Replit预览等iframe环境中无法使用摄像头 -->
+                        <div id="iframeWarning" class="alert alert-info mb-3" style="display:none;">
+                            <strong>提示：</strong>当前页面在嵌入窗口中，摄像头可能无法使用。<br>
+                            <a id="newWindowLink" href="#" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                                在新窗口中打开此页面
+                            </a>
+                            <small class="d-block mt-1 text-muted">新窗口中摄像头扫码可正常使用</small>
+                        </div>
                         <div class="text-center mb-2">
                             <small class="text-muted">将条形码对准下方红色线条位置</small>
                         </div>
@@ -213,7 +221,12 @@
                             <div class="alert alert-info mb-2">扫描到ISBN：<strong id="scannedIsbn"></strong></div>
                             <div id="scanBookInfo" class="small text-muted"></div>
                         </div>
-                        <div id="scanError" class="alert alert-warning mt-2" style="display:none;"></div>
+                        <div id="scanError" class="alert alert-warning mt-2" style="display:none;">
+                            <span id="scanErrorText"></span>
+                            <a id="scanErrorNewWindow" href="#" target="_blank" class="btn btn-sm btn-outline-primary mt-2" style="display:none;">
+                                在新窗口打开（推荐）
+                            </a>
+                        </div>
                         <div class="mt-3 text-center">
                             <button class="btn btn-secondary btn-sm" onclick="backToOptions()">← 返回选择</button>
                         </div>
@@ -435,11 +448,27 @@
             document.getElementById('scanModalFooter').style.display = 'none';
             document.getElementById('scanResult').style.display = 'none';
             document.getElementById('scanError').style.display = 'none';
+            document.getElementById('iframeWarning').style.display = 'none';
+            document.getElementById('scanErrorNewWindow').style.display = 'none';
         }
         
+        // 检测是否在iframe中
+        function isInIframe(){
+            try { return window.self !== window.top; } catch(e) { return true; }
+        }
+
         function startCameraScan(){
             document.getElementById('scanOptions').style.display = 'none';
             document.getElementById('cameraScanArea').style.display = 'block';
+
+            // 如果在iframe中，显示提示
+            if(isInIframe()){
+                const warning = document.getElementById('iframeWarning');
+                const link = document.getElementById('newWindowLink');
+                link.href = window.location.href;
+                warning.style.display = 'block';
+            }
+
             setTimeout(() => startScanner(), 300);
         }
         
@@ -490,18 +519,30 @@
                         onScanFailure
                     ).catch(err => {
                         console.error('摄像头启动失败:', err);
-                        document.getElementById('scanError').style.display = 'block';
-                        document.getElementById('scanError').textContent = '无法启动摄像头，请使用手动输入ISBN';
+                        showCameraError('无法启动摄像头：' + (err.message || err));
                     });
                 } else {
-                    document.getElementById('scanError').style.display = 'block';
-                    document.getElementById('scanError').textContent = '未检测到摄像头，请使用手动输入ISBN';
+                    showCameraError('未检测到摄像头设备');
                 }
             }).catch(err => {
                 console.error('获取摄像头列表失败:', err);
-                document.getElementById('scanError').style.display = 'block';
-                document.getElementById('scanError').textContent = '无法访问摄像头，请使用手动输入ISBN';
+                const msg = isInIframe() 
+                    ? '当前在嵌入窗口中，浏览器禁止访问摄像头' 
+                    : '无法访问摄像头，请检查浏览器权限设置';
+                showCameraError(msg);
             });
+        }
+
+        function showCameraError(msg){
+            const errDiv = document.getElementById('scanError');
+            const errText = document.getElementById('scanErrorText');
+            const errLink = document.getElementById('scanErrorNewWindow');
+            errText.textContent = msg + '。建议使用"手动输入ISBN"或"按书名搜索"';
+            if(isInIframe()){
+                errLink.href = window.location.href;
+                errLink.style.display = 'inline-block';
+            }
+            errDiv.style.display = 'block';
         }
         
         function stopScanner(){
